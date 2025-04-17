@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.24;
+pragma solidity 0.8.28;
 
 import {Vm} from "forge-std/Test.sol";
 import {console2} from "forge-std/console2.sol";
@@ -39,6 +39,8 @@ contract AragonE2E is AragonTest {
             protocol = vm.envAddress("BASE_GOERLI", ",");
         else if (network == keccak256(abi.encodePacked("baseMainnet")))
             protocol = vm.envAddress("BASE_MAINNET", ",");
+        else if (network == keccak256(abi.encodePacked("arbitrumSepolia")))
+            protocol = vm.envAddress("ARBITRUM_SEPOLIA", ",");
         else revert UnknownNetwork();
 
         daoFactory = DAOFactory(protocol[0]);

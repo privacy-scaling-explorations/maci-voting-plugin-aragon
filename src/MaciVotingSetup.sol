@@ -2,32 +2,32 @@
 
 pragma solidity ^0.8.20;
 
-import {PluginUpgradeableSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginUpgradeableSetup.sol";
-import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
-import {IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
-import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
+import {PluginSetup, IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 
-import {DomainObjs} from "maci-contracts/contracts/utilities/DomainObjs.sol";
+import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 import {IMaciVoting} from "./IMaciVoting.sol";
 import {MaciVoting} from "./MaciVoting.sol";
 
 /// @title MaciVotingSetup
 /// @dev Release 1, Build 1
 // @custom:oz-upgrades-unsafe-allow state-variable-immutable
-contract MaciVotingSetup is PluginUpgradeableSetup {
-    using ProxyLib for address;
-
-    /// @notice Constructs the `PluginUpgradeableSetup` by storing the `MaciVoting` implementation address.
-    /// @dev The implementation address is used to deploy UUPS proxies referencing it and
-    /// to verify the plugin on the respective block explorers.
-    constructor() PluginUpgradeableSetup(address(new MaciVoting())) {}
-
+contract MaciVotingSetup is PluginSetup {
     /// @notice The ID of the permission required to call the `createProposal` function.
     bytes32 internal constant CREATE_PROPOSAL_PERMISSION_ID =
         keccak256("CREATE_PROPOSAL_PERMISSION");
     /// @notice The ID of the permission required to call the `execute` function.
     bytes32 internal constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
+
+    address private immutable IMPLEMENTATION;
+
+    /// @notice Constructs the `PluginSetup` by storing the `MaciVoting` implementation address.
+    /// @dev The implementation address is used to deploy UUPS proxies referencing it and
+    /// to verify the plugin on the respective block explorers.
+    constructor() {
+        IMPLEMENTATION = address(new MaciVoting());
+    }
 
     /// @inheritdoc IPluginSetup
     function prepareInstallation(
@@ -36,12 +36,18 @@ contract MaciVotingSetup is PluginUpgradeableSetup {
     ) external returns (address plugin, PreparedSetupData memory preparedSetupData) {
         (
             address maci,
-            DomainObjs.PubKey memory publicKey,
-            IMaciVoting.VotingSettings memory votingSettings
-        ) = abi.decode(_data, (address, DomainObjs.PubKey, IMaciVoting.VotingSettings));
+            DomainObjs.PublicKey memory publicKey,
+            IMaciVoting.VotingSettings memory votingSettings,
+            address verifier,
+            address vkRegistry,
+            address policyFactory,
+            address checkerFactory,
+            address voiceCreditProxyFactory
+        ) = abi.decode(_data, (address, DomainObjs.PublicKey, IMaciVoting.VotingSettings, address, address, address, address, address));
 
-        plugin = IMPLEMENTATION.deployUUPSProxy(
-            abi.encodeCall(MaciVoting.initialize, (IDAO(_dao), maci, publicKey, votingSettings))
+        plugin = createERC1967Proxy(
+            IMPLEMENTATION,
+            abi.encodeCall(MaciVoting.initialize, (IDAO(_dao), maci, publicKey, votingSettings, verifier, vkRegistry, policyFactory, checkerFactory, voiceCreditProxyFactory))
         );
 
         PermissionLib.MultiTargetPermission[]
@@ -71,9 +77,8 @@ contract MaciVotingSetup is PluginUpgradeableSetup {
         address _dao,
         uint16 _fromBuild,
         SetupPayload calldata _payload
-    ) external pure virtual returns (bytes memory, PreparedSetupData memory) {
+    ) external pure override returns (bytes memory, PreparedSetupData memory) {
         (_dao, _fromBuild, _payload);
-        revert InvalidUpdatePath({fromBuild: 0, thisBuild: 1});
     }
 
     /// @inheritdoc IPluginSetup
@@ -97,5 +102,10 @@ contract MaciVotingSetup is PluginUpgradeableSetup {
             condition: PermissionLib.NO_CONDITION,
             permissionId: EXECUTE_PERMISSION_ID
         });
+    }
+
+    /// @inheritdoc IPluginSetup
+    function implementation() external view returns (address) {
+        return IMPLEMENTATION;
     }
 }

@@ -2,22 +2,24 @@
 
 pragma solidity ^0.8.20;
 
-import {PluginUUPSUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/PluginUUPSUpgradeable.sol";
-import {ProposalUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/ProposalUpgradeable.sol";
-import {IMaciVoting} from "./IMaciVoting.sol";
+import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
+import {_applyRatioCeiled} from "@aragon/osx/plugins/utils/Ratio.sol";
+import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgradeable.sol";
+import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {IProposal} from "@aragon/osx/core/plugin/proposal/IProposal.sol";
 
 import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
-import {MACI} from "maci-contracts/contracts/MACI.sol";
-import {DomainObjs} from "maci-contracts/contracts/utilities/DomainObjs.sol";
-import {Action} from "@aragon/osx-commons-contracts/src/executors/IExecutor.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
-import {IMACI} from "maci-contracts/contracts/interfaces/IMACI.sol";
-import {Params} from "maci-contracts/contracts/utilities/Params.sol";
-import {IProposal} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/IProposal.sol";
-import {Tally} from "maci-contracts/contracts/Tally.sol";
+import {MACI} from "@maci-protocol/contracts/contracts/MACI.sol";
+import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
+import {Tally} from "@maci-protocol/contracts/contracts/Tally.sol";
+import {IMACI} from "@maci-protocol/contracts/contracts/interfaces/IMACI.sol";
+import {Params} from "@maci-protocol/contracts/contracts/utilities/Params.sol";
 
-import {_applyRatioCeiled} from "./Utils.sol";
+import {IMaciVoting} from "./IMaciVoting.sol";
+import { IERC20VotesCheckerFactory } from "./IERC20VotesCheckerFactory.sol";
+import { IERC20VotesPolicyFactory } from "./IERC20VotesPolicyFactory.sol";
+import { IInitialVoiceCreditsProxyFactory } from "./IInitialVoiceCreditsProxyFactory.sol";
 
 /// @title MaciVoting
 /// @dev Release 1, Build 1
@@ -46,13 +48,35 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
     /// @notice The coordinator public key.
     /// @dev We do not allow it to be passed per poll as we want the DAO to control this for now
-    DomainObjs.PubKey public coordinatorPubKey;
+    DomainObjs.PublicKey public coordinatorPubKey;
 
     /// @notice The voting settings.
     VotingSettings public votingSettings;
 
     /// @notice The proposals.
     Proposal[] public proposals;
+
+    /// @notice The policy factory for the polls
+	IERC20VotesPolicyFactory public policyFactory;
+	/// @notice The checker factory for the polls
+	IERC20VotesCheckerFactory public checkerFactory;
+	/// @notice The voice credit proxy factory for the polls
+	IInitialVoiceCreditsProxyFactory public voiceCreditProxyFactory;
+
+    /// @notice The verifier for the polls
+    address public verifier;
+    /// @notice The vk registry for the polls
+    address public vkRegistry;
+
+    /// @notice determines the capacity of the state tree
+    uint8 public constant STATE_TREE_DEPTH = 10;
+    // we only need 3 options -> 5 ** 1 = 5 capacity 
+    uint8 public constant VOTE_OPTION_TREE_DEPTH = 1;
+    /// @notice determins the capacity of the int state tree
+    uint8 public constant INT_STATE_TREE_DEPTH = 2;
+
+    /// @notice The tree depths for the polls
+    Params.TreeDepths treeDepths;
 
     /// @notice Thrown if the proposal with same actions and metadata already exists.
     /// @param proposalId The id of the proposal.
@@ -98,9 +122,8 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     struct Proposal {
         bool executed;
         ProposalParameters parameters;
-        Action[] actions;
+        IDAO.Action[] actions;
         uint256 allowFailureMap;
-        TargetConfig targetConfig; // added in v1.3
         uint256 pollId;
         address pollAddress;
     }
@@ -124,17 +147,35 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @param _maci The address of the maci contract.
     /// @param _coordinatorPubKey The coordinator public key.
     /// @param _votingSettings The voting settings.
+    /// @param _verifier The address of the verifier.
+    /// @param _vkRegistry The address of the vk registry.
     function initialize(
         IDAO _dao,
         address _maci,
-        DomainObjs.PubKey calldata _coordinatorPubKey,
-        VotingSettings calldata _votingSettings
+        DomainObjs.PublicKey calldata _coordinatorPubKey,
+        VotingSettings calldata _votingSettings,
+        address _verifier,
+        address _vkRegistry,
+        address _policyFactory,
+        address _checkerFactory,
+        address _voiceCreditProxyFactory
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
         maci = MACI(_maci);
         coordinatorPubKey = _coordinatorPubKey;
         votingSettings = _votingSettings;
+        verifier = _verifier;
+        vkRegistry = _vkRegistry;
+        policyFactory = IERC20VotesPolicyFactory(_policyFactory);
+        checkerFactory = IERC20VotesCheckerFactory(_checkerFactory);
+        voiceCreditProxyFactory = IInitialVoiceCreditsProxyFactory(_voiceCreditProxyFactory);
+
+        treeDepths = Params.TreeDepths({
+            intStateTreeDepth: INT_STATE_TREE_DEPTH,
+            voteOptionTreeDepth: VOTE_OPTION_TREE_DEPTH,
+            stateTreeDepth: STATE_TREE_DEPTH
+        });
     }
 
     /// @notice Checks if this or the parent contract supports an interface by its ID.
@@ -146,7 +187,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         return _interfaceId == MACI_VOTING_INTERFACE_ID || super.supportsInterface(_interfaceId);
     }
 
-    function customProposalParamsABI() external pure override(IProposal) returns (string memory) {
+    function customProposalParamsABI() external pure returns (string memory) {
         return "(uint256 allowFailureMap, uint8 voteOption, bool tryEarlyExecution)";
     }
 
@@ -174,24 +215,26 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         return votingSettings.minParticipation;
     }
 
-    function hasSucceeded(uint256 _proposalId) external view override(IProposal) returns (bool) {
+    function hasSucceeded(uint256 _proposalId) external view returns (bool) {
         return proposals[_proposalId].executed;
     }
 
     /// @notice Deploy a poll in MACI
     /// @param _startDate The start date of the proposal.
     /// @param _endDate The end date of the proposal.
+    /// @param _minVotingPower The minimum voting power required to pass the proposal.
     function deployPoll(
         uint64 _startDate,
-        uint64 _endDate
+        uint64 _endDate,
+        uint256 _minVotingPower
     ) internal returns (uint256, IMACI.PollContracts memory) {
-        Params.TreeDepths memory treeDepths = Params.TreeDepths({
-            intStateTreeDepth: 2,
-            voteOptionTreeDepth: 1
-        });
-
         address[] memory relayers = new address[](1);
         relayers[0] = address(0);
+
+        address checker = checkerFactory.deploy(address(votingToken), block.number, _minVotingPower);
+        address policy = policyFactory.deploy(checker);
+
+        address initialVoiceCreditProxy = voiceCreditProxyFactory.deploy(block.number,address(votingToken), 10e16);
 
         // Arguments to deploy a poll
         IMACI.DeployPollArgs memory deployPollArgs = IMACI.DeployPollArgs({
@@ -199,12 +242,12 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             endDate: _endDate,
             treeDepths: treeDepths,
             messageBatchSize: 20,
-            coordinatorPubKey: coordinatorPubKey,
-            verifier: address(0),
-            vkRegistry: address(0),
+            coordinatorPublicKey: coordinatorPubKey,
+            verifier: verifier,
+            vkRegistry: vkRegistry,
             mode: DomainObjs.Mode.NON_QV,
-            policy: address(this),
-            initialVoiceCreditProxy: address(this),
+            policy: policy,
+            initialVoiceCreditProxy: initialVoiceCreditProxy,
             relayers: relayers,
             // yes - no - abstain
             voteOptions: 3
@@ -253,7 +296,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @dev Helper function to avoid stack too deep in non via-ir compilation mode.
     function _emitProposalCreatedEvent(
         bytes calldata _metadata,
-        Action[] calldata _actions,
+        IDAO.Action[] calldata _actions,
         uint256 _allowFailureMap,
         uint256 proposalId,
         uint64 _startDate,
@@ -277,7 +320,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @param _endDate The end date of the proposal.
     function createProposal(
         bytes calldata _metadata,
-        Action[] calldata _actions,
+        IDAO.Action[] calldata _actions,
         uint256 _allowFailureMap,
         uint64 _startDate,
         uint64 _endDate
@@ -311,8 +354,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
         (_startDate, _endDate) = _validateProposalDates(_startDate, _endDate);
 
-        /// @todo follow checks effects interactions and move this before (can take poll id before deploying though still external call first)
-        proposalId = _createProposalId(keccak256(abi.encode(_actions, _metadata)));
+        proposalId = _createProposalId();
 
         // Store proposal related information
         Proposal storage proposal_ = proposals[proposalId];
@@ -331,7 +373,8 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
         (uint256 pollId, IMACI.PollContracts memory pollContracts) = deployPoll(
             _startDate,
-            _endDate
+            _endDate,
+            proposal_.parameters.minVotingPower
         );
 
         proposal_.pollId = pollId;
@@ -359,14 +402,13 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         );
     }
 
-    /// @inheritdoc IProposal
     function createProposal(
         bytes calldata _metadata,
-        Action[] calldata _actions,
+        IDAO.Action[] calldata _actions,
         uint64 _startDate,
         uint64 _endDate,
         bytes memory _data
-    ) external override returns (uint256 proposalId) {
+    ) external returns (uint256 proposalId) {
         // Note that this calls public function for permission check.
         uint256 allowFailureMap;
 
@@ -425,7 +467,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @dev Reverts if the proposal with the given `_proposalId` does not exist.
     function canExecute(
         uint256 _proposalId
-    ) public view virtual override(IProposal) returns (bool) {
+    ) public view virtual returns (bool) {
         if (!_proposalExists(_proposalId)) {
             revert NonexistentProposal(_proposalId);
         }
@@ -437,7 +479,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @param _proposalId The ID of the proposal.
     function execute(
         uint256 _proposalId
-    ) public virtual override(IProposal) auth(EXECUTE_PERMISSION_ID) {
+    ) public virtual auth(EXECUTE_PERMISSION_ID) {
         if (!_canExecute(_proposalId)) {
             revert ProposalExecutionForbidden(_proposalId);
         }
@@ -446,12 +488,11 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
         proposal_.executed = true;
 
-        _execute(
-            proposal_.targetConfig.target,
-            bytes32(_proposalId),
+        _executeProposal(
+            dao(),
+            _proposalId,
             proposal_.actions,
-            proposal_.allowFailureMap,
-            proposal_.targetConfig.operation
+            proposal_.allowFailureMap
         );
 
         emit ProposalExecuted(_proposalId);

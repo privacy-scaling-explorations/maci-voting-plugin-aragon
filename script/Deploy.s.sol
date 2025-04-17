@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {Vm} from "forge-std/Vm.sol";
@@ -8,19 +8,27 @@ import {DAOFactory} from "@aragon/osx/framework/dao/DAOFactory.sol";
 import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {hashHelpers, PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
+import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 
-import {MyPlugin} from "../src/MyPlugin.sol";
-import {MyPluginSetup} from "../src/MyPluginSetup.sol";
+import {MaciVoting} from "../src/MaciVoting.sol";
+import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
 
-contract MyPluginScript is Script {
+contract MaciVotingScript is Script {
     address pluginRepoFactory;
     DAOFactory daoFactory;
     string nameWithEntropy;
     address[] pluginAddress;
+    address maciAddress;
+    DomainObjs.PublicKey coordinatorPublicKey;
 
     function setUp() public {
         pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
         daoFactory = DAOFactory(vm.envAddress("DAO_FACTORY"));
+        maciAddress = vm.envAddress("MACI_ADDRESS");
+        coordinatorPublicKey = DomainObjs.PublicKey({
+            x: vm.envUint("COORDINATOR_PUBLIC_KEY_X"),
+            y: vm.envUint("COORDINATOR_PUBLIC_KEY_Y")
+        });
         nameWithEntropy = string.concat("my-plugin-", vm.toString(block.timestamp));
     }
 
@@ -29,7 +37,7 @@ contract MyPluginScript is Script {
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
 
         // 1. Deploying the Plugin Setup
-        MyPluginSetup pluginSetup = deployPluginSetup();
+        MaciVotingSetup pluginSetup = deployPluginSetup();
 
         // 2. Publishing it in the Aragon OSx Protocol
         PluginRepo pluginRepo = deployPluginRepo(address(pluginSetup));
@@ -68,8 +76,8 @@ contract MyPluginScript is Script {
         }
     }
 
-    function deployPluginSetup() public returns (MyPluginSetup) {
-        MyPluginSetup pluginSetup = new MyPluginSetup();
+    function deployPluginSetup() public returns (MaciVotingSetup) {
+        MaciVotingSetup pluginSetup = new MaciVotingSetup();
         return pluginSetup;
     }
 

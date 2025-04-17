@@ -1,34 +1,44 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.24;
+pragma solidity 0.8.28;
 
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
+import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 
 import {AragonE2E} from "./base/AragonE2E.sol";
-import {MyPluginSetup} from "../src/MyPluginSetup.sol";
-import {MyPlugin} from "../src/MyPlugin.sol";
+import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
+import {MaciVoting} from "../src/MaciVoting.sol";
+import {IMaciVoting} from "../src/IMaciVoting.sol";
 
-contract MyPluginE2E is AragonE2E {
+contract MaciVotingE2E is AragonE2E {
     DAO internal dao;
-    MyPlugin internal plugin;
+    MaciVoting internal plugin;
     PluginRepo internal repo;
-    MyPluginSetup internal setup;
-    uint256 internal constant NUMBER = 420;
+    MaciVotingSetup internal setup;
     address internal unauthorised = account("unauthorised");
+
+    address internal maciAddress;
+    DomainObjs.PublicKey internal coordinatorPublicKey;
+    IMaciVoting.VotingSettings internal votingSettings;
+    address internal verifier;
+    address internal vkRegistry;
+    address internal policyFactory;
+    address internal checkerFactory;
+    address internal voiceCreditProxyFactory;
 
     function setUp() public virtual override {
         super.setUp();
-        setup = new MyPluginSetup();
+        setup = new MaciVotingSetup();
         address _plugin;
 
         (dao, repo, _plugin) = deployRepoAndDao(
-            "simplestorage4202934800",
+            "maciVotingTest",
             address(setup),
-            abi.encode(NUMBER)
+            abi.encode(maciAddress, coordinatorPublicKey, votingSettings, verifier, vkRegistry, policyFactory, checkerFactory, voiceCreditProxyFactory)
         );
 
-        plugin = MyPlugin(_plugin);
+        plugin = MaciVoting(_plugin);
     }
 
     function test_e2e() public {
@@ -39,25 +49,5 @@ contract MyPluginE2E is AragonE2E {
 
         // test dao
         assertEq(keccak256(bytes(dao.daoURI())), keccak256(bytes("https://mockDaoURL.com")));
-
-        // test plugin init correctly
-        assertEq(plugin.number(), 420);
-
-        // test dao store number
-        vm.prank(address(dao));
-        plugin.storeNumber(69);
-
-        // test unauthorised cannot store number
-        vm.prank(unauthorised);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                DaoUnauthorized.selector,
-                dao,
-                plugin,
-                unauthorised,
-                keccak256("STORE_PERMISSION")
-            )
-        );
-        plugin.storeNumber(69);
     }
 }
