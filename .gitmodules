@@ -19,3 +19,6 @@
 [submodule "lib/ens-contracts"]
 	path = lib/ens-contracts
 	url = https://github.com/ensdomains/ens-contracts
+[submodule "lib/maci"]
+	path = lib/maci
+	url = https://github.com/privacy-scaling-explorations/maci
