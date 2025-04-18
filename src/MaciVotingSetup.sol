@@ -43,11 +43,36 @@ contract MaciVotingSetup is PluginSetup {
             address policyFactory,
             address checkerFactory,
             address voiceCreditProxyFactory
-        ) = abi.decode(_data, (address, DomainObjs.PublicKey, IMaciVoting.VotingSettings, address, address, address, address, address));
+        ) = abi.decode(
+                _data,
+                (
+                    address,
+                    DomainObjs.PublicKey,
+                    IMaciVoting.VotingSettings,
+                    address,
+                    address,
+                    address,
+                    address,
+                    address
+                )
+            );
 
         plugin = createERC1967Proxy(
             IMPLEMENTATION,
-            abi.encodeCall(MaciVoting.initialize, (IDAO(_dao), maci, publicKey, votingSettings, verifier, vkRegistry, policyFactory, checkerFactory, voiceCreditProxyFactory))
+            abi.encodeCall(
+                MaciVoting.initialize,
+                (
+                    IDAO(_dao),
+                    maci,
+                    publicKey,
+                    votingSettings,
+                    verifier,
+                    vkRegistry,
+                    policyFactory,
+                    checkerFactory,
+                    voiceCreditProxyFactory
+                )
+            )
         );
 
         PermissionLib.MultiTargetPermission[]
@@ -69,16 +94,6 @@ contract MaciVotingSetup is PluginSetup {
         });
 
         preparedSetupData.permissions = permissions;
-    }
-
-    /// @inheritdoc IPluginSetup
-    /// @dev The default implementation for the initial build 1 that reverts because no earlier build exists.
-    function prepareUpdate(
-        address _dao,
-        uint16 _fromBuild,
-        SetupPayload calldata _payload
-    ) external pure override returns (bytes memory, PreparedSetupData memory) {
-        (_dao, _fromBuild, _payload);
     }
 
     /// @inheritdoc IPluginSetup

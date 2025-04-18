@@ -20,23 +20,30 @@ contract MaciVotingScript is Script {
     string nameWithEntropy;
     address[] pluginAddress;
     address maciAddress;
+    address verifier;
+    address vkRegistry;
+    address policyFactory;
+    address checkerFactory;
+    address voiceCreditProxyFactory;
     DomainObjs.PublicKey coordinatorPublicKey;
     IMaciVoting.VotingSettings votingSettings;
-    address verifier = address(0x41501310360fB771e65Ef7DCA4F48231D9178253);
-    address vkRegistry = address(0xDd16A1E9908b663Ed55260D63A4b6BD519662029);
-    address policyFactory = address(0xF85482f8254EFb6a96346756ab81d5582E436d18);
-    address checkerFactory = address(0x9D1C736b5c86d3eB6D9C062D89793C2fEa4bd5da);
-    address voiceCreditProxyFactory = address(0x9D1C736b5c86d3eB6D9C062D89793C2fEa4bd5da);
 
     function setUp() public {
         pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
         daoFactory = DAOFactory(vm.envAddress("DAO_FACTORY"));
+        nameWithEntropy = string.concat("maci-voting-plugin-", vm.toString(block.timestamp));
+
         maciAddress = vm.envAddress("MACI_ADDRESS");
+        verifier = vm.envAddress("VERIFIER_ADDRESS");
+        vkRegistry = vm.envAddress("VK_REGISTRY_ADDRESS");
+        policyFactory = vm.envAddress("POLICY_FACTORY_ADDRESS");
+        checkerFactory = vm.envAddress("CHECKER_FACTORY_ADDRESS");
+        voiceCreditProxyFactory = vm.envAddress("VOICE_CREDIT_PROXY_FACTORY_ADDRESS");
+
         coordinatorPublicKey = DomainObjs.PublicKey({
             x: vm.envUint("COORDINATOR_PUBLIC_KEY_X"),
             y: vm.envUint("COORDINATOR_PUBLIC_KEY_Y")
         });
-        nameWithEntropy = string.concat("my-plugin-", vm.toString(block.timestamp));
 
         votingSettings = IMaciVoting.VotingSettings({
             minParticipation: 0,
@@ -111,7 +118,16 @@ contract MaciVotingScript is Script {
     function getPluginSettings(
         PluginRepo pluginRepo
     ) public view returns (DAOFactory.PluginSettings[] memory pluginSettings) {
-        bytes memory pluginSettingsData = abi.encode(maciAddress, coordinatorPublicKey, votingSettings, verifier, vkRegistry, policyFactory, checkerFactory, voiceCreditProxyFactory);
+        bytes memory pluginSettingsData = abi.encode(
+            maciAddress,
+            coordinatorPublicKey,
+            votingSettings,
+            verifier,
+            vkRegistry,
+            policyFactory,
+            checkerFactory,
+            voiceCreditProxyFactory
+        );
 
         PluginRepo.Tag memory tag = PluginRepo.Tag(1, 1);
         pluginSettings = new DAOFactory.PluginSettings[](1);
