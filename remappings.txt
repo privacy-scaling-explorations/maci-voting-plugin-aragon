@@ -11,6 +11,6 @@ erc4626-tests/=lib/openzeppelin-contracts-upgradeable/lib/erc4626-tests/
 openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/
 openzeppelin-contracts/=lib/openzeppelin-contracts/
 
-@maci-protocol/contracts=node_modules/@maci-protocol/contracts 
-@excubiae/contracts=node_modules/@excubiae/contracts 
+@maci-protocol/contracts=node_modules/@maci-protocol/contracts
+@excubiae/contracts=node_modules/@excubiae/contracts
 solady/=node_modules/solady/
