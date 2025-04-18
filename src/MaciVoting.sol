@@ -17,9 +17,9 @@ import {IMACI} from "@maci-protocol/contracts/contracts/interfaces/IMACI.sol";
 import {Params} from "@maci-protocol/contracts/contracts/utilities/Params.sol";
 
 import {IMaciVoting} from "./IMaciVoting.sol";
-import { IERC20VotesCheckerFactory } from "./IERC20VotesCheckerFactory.sol";
-import { IERC20VotesPolicyFactory } from "./IERC20VotesPolicyFactory.sol";
-import { IInitialVoiceCreditsProxyFactory } from "./IInitialVoiceCreditsProxyFactory.sol";
+import {IERC20VotesCheckerFactory} from "./IERC20VotesCheckerFactory.sol";
+import {IERC20VotesPolicyFactory} from "./IERC20VotesPolicyFactory.sol";
+import {IInitialVoiceCreditsProxyFactory} from "./IInitialVoiceCreditsProxyFactory.sol";
 
 /// @title MaciVoting
 /// @dev Release 1, Build 1
@@ -57,11 +57,11 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     Proposal[] public proposals;
 
     /// @notice The policy factory for the polls
-	IERC20VotesPolicyFactory public policyFactory;
-	/// @notice The checker factory for the polls
-	IERC20VotesCheckerFactory public checkerFactory;
-	/// @notice The voice credit proxy factory for the polls
-	IInitialVoiceCreditsProxyFactory public voiceCreditProxyFactory;
+    IERC20VotesPolicyFactory public policyFactory;
+    /// @notice The checker factory for the polls
+    IERC20VotesCheckerFactory public checkerFactory;
+    /// @notice The voice credit proxy factory for the polls
+    IInitialVoiceCreditsProxyFactory public voiceCreditProxyFactory;
 
     /// @notice The verifier for the polls
     address public verifier;
@@ -70,7 +70,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
     /// @notice determines the capacity of the state tree
     uint8 public constant STATE_TREE_DEPTH = 10;
-    // we only need 3 options -> 5 ** 1 = 5 capacity 
+    // we only need 3 options -> 5 ** 1 = 5 capacity
     uint8 public constant VOTE_OPTION_TREE_DEPTH = 1;
     /// @notice determins the capacity of the int state tree
     uint8 public constant INT_STATE_TREE_DEPTH = 2;
@@ -231,10 +231,18 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         address[] memory relayers = new address[](1);
         relayers[0] = address(0);
 
-        address checker = checkerFactory.deploy(address(votingToken), block.number, _minVotingPower);
+        address checker = checkerFactory.deploy(
+            address(votingToken),
+            block.number,
+            _minVotingPower
+        );
         address policy = policyFactory.deploy(checker);
 
-        address initialVoiceCreditProxy = voiceCreditProxyFactory.deploy(block.number,address(votingToken), 10e16);
+        address initialVoiceCreditProxy = voiceCreditProxyFactory.deploy(
+            block.number,
+            address(votingToken),
+            10e16
+        );
 
         // Arguments to deploy a poll
         IMACI.DeployPollArgs memory deployPollArgs = IMACI.DeployPollArgs({
@@ -465,9 +473,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     }
 
     /// @dev Reverts if the proposal with the given `_proposalId` does not exist.
-    function canExecute(
-        uint256 _proposalId
-    ) public view virtual returns (bool) {
+    function canExecute(uint256 _proposalId) public view virtual returns (bool) {
         if (!_proposalExists(_proposalId)) {
             revert NonexistentProposal(_proposalId);
         }
@@ -477,9 +483,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
     /// @notice Executes a proposal after the voting period has ended and results are available.
     /// @param _proposalId The ID of the proposal.
-    function execute(
-        uint256 _proposalId
-    ) public virtual auth(EXECUTE_PERMISSION_ID) {
+    function execute(uint256 _proposalId) public virtual auth(EXECUTE_PERMISSION_ID) {
         if (!_canExecute(_proposalId)) {
             revert ProposalExecutionForbidden(_proposalId);
         }
@@ -488,12 +492,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
         proposal_.executed = true;
 
-        _executeProposal(
-            dao(),
-            _proposalId,
-            proposal_.actions,
-            proposal_.allowFailureMap
-        );
+        _executeProposal(dao(), _proposalId, proposal_.actions, proposal_.allowFailureMap);
 
         emit ProposalExecuted(_proposalId);
     }

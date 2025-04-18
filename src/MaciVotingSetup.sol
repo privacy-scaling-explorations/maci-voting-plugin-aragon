@@ -14,19 +14,13 @@ import {MaciVoting} from "./MaciVoting.sol";
 /// @dev Release 1, Build 1
 // @custom:oz-upgrades-unsafe-allow state-variable-immutable
 contract MaciVotingSetup is PluginSetup {
-    /// @notice The ID of the permission required to call the `createProposal` function.
-    bytes32 internal constant CREATE_PROPOSAL_PERMISSION_ID =
-        keccak256("CREATE_PROPOSAL_PERMISSION");
-    /// @notice The ID of the permission required to call the `execute` function.
-    bytes32 internal constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
-
-    address private immutable IMPLEMENTATION;
+    MaciVoting private immutable maciVoting;
 
     /// @notice Constructs the `PluginSetup` by storing the `MaciVoting` implementation address.
     /// @dev The implementation address is used to deploy UUPS proxies referencing it and
     /// to verify the plugin on the respective block explorers.
     constructor() {
-        IMPLEMENTATION = address(new MaciVoting());
+        maciVoting = new MaciVoting();
     }
 
     /// @inheritdoc IPluginSetup
@@ -58,7 +52,7 @@ contract MaciVotingSetup is PluginSetup {
             );
 
         plugin = createERC1967Proxy(
-            IMPLEMENTATION,
+            address(maciVoting),
             abi.encodeCall(
                 MaciVoting.initialize,
                 (
@@ -83,14 +77,14 @@ contract MaciVotingSetup is PluginSetup {
             where: plugin,
             who: _dao,
             condition: PermissionLib.NO_CONDITION,
-            permissionId: CREATE_PROPOSAL_PERMISSION_ID
+            permissionId: maciVoting.CREATE_PROPOSAL_PERMISSION_ID()
         });
         permissions[1] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: plugin,
             who: _dao,
             condition: PermissionLib.NO_CONDITION,
-            permissionId: EXECUTE_PERMISSION_ID
+            permissionId: maciVoting.EXECUTE_PERMISSION_ID()
         });
 
         preparedSetupData.permissions = permissions;
@@ -100,7 +94,7 @@ contract MaciVotingSetup is PluginSetup {
     function prepareUninstallation(
         address _dao,
         SetupPayload calldata _payload
-    ) external pure returns (PermissionLib.MultiTargetPermission[] memory permissions) {
+    ) external view returns (PermissionLib.MultiTargetPermission[] memory permissions) {
         permissions = new PermissionLib.MultiTargetPermission[](2);
 
         permissions[0] = PermissionLib.MultiTargetPermission({
@@ -108,19 +102,19 @@ contract MaciVotingSetup is PluginSetup {
             where: _payload.plugin,
             who: _dao,
             condition: PermissionLib.NO_CONDITION,
-            permissionId: CREATE_PROPOSAL_PERMISSION_ID
+            permissionId: maciVoting.CREATE_PROPOSAL_PERMISSION_ID()
         });
         permissions[1] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Revoke,
             where: _payload.plugin,
             who: _dao,
             condition: PermissionLib.NO_CONDITION,
-            permissionId: EXECUTE_PERMISSION_ID
+            permissionId: maciVoting.EXECUTE_PERMISSION_ID()
         });
     }
 
     /// @inheritdoc IPluginSetup
     function implementation() external view returns (address) {
-        return IMPLEMENTATION;
+        return address(maciVoting);
     }
 }
