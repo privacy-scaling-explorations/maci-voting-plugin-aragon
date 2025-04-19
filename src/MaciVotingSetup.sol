@@ -5,6 +5,7 @@ pragma solidity ^0.8.20;
 import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
 import {PluginSetup, IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 import {IMaciVoting} from "./IMaciVoting.sol";
@@ -70,21 +71,14 @@ contract MaciVotingSetup is PluginSetup {
         );
 
         PermissionLib.MultiTargetPermission[]
-            memory permissions = new PermissionLib.MultiTargetPermission[](2);
+            memory permissions = new PermissionLib.MultiTargetPermission[](1);
 
         permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
-            where: plugin,
-            who: _dao,
+            where: _dao,
+            who: plugin,
             condition: PermissionLib.NO_CONDITION,
-            permissionId: maciVoting.CREATE_PROPOSAL_PERMISSION_ID()
-        });
-        permissions[1] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            where: plugin,
-            who: _dao,
-            condition: PermissionLib.NO_CONDITION,
-            permissionId: maciVoting.EXECUTE_PERMISSION_ID()
+            permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
 
         preparedSetupData.permissions = permissions;
@@ -95,21 +89,14 @@ contract MaciVotingSetup is PluginSetup {
         address _dao,
         SetupPayload calldata _payload
     ) external view returns (PermissionLib.MultiTargetPermission[] memory permissions) {
-        permissions = new PermissionLib.MultiTargetPermission[](2);
+        permissions = new PermissionLib.MultiTargetPermission[](1);
 
         permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Revoke,
-            where: _payload.plugin,
-            who: _dao,
+            where: _dao,
+            who: _payload.plugin,
             condition: PermissionLib.NO_CONDITION,
-            permissionId: maciVoting.CREATE_PROPOSAL_PERMISSION_ID()
-        });
-        permissions[1] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Revoke,
-            where: _payload.plugin,
-            who: _dao,
-            condition: PermissionLib.NO_CONDITION,
-            permissionId: maciVoting.EXECUTE_PERMISSION_ID()
+            permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
     }
 
