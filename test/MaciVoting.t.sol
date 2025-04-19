@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.28;
 
+import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
@@ -10,6 +11,7 @@ import {AragonTest} from "./base/AragonTest.sol";
 import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
 import {MaciVoting} from "../src/MaciVoting.sol";
 import {IMaciVoting} from "../src/IMaciVoting.sol";
+import {GovernanceERC20} from "../src/ERC20Votes/GovernanceERC20.sol";
 
 abstract contract MaciVotingTest is AragonTest {
     DAO internal dao;
@@ -29,17 +31,36 @@ abstract contract MaciVotingTest is AragonTest {
     function setUp() public virtual {
         vm.prank(address(0xB0b));
 
-        setup = new MaciVotingSetup();
-        bytes memory setupData = abi.encode(
-            maciAddress,
-            coordinatorPublicKey,
-            votingSettings,
-            verifier,
-            vkRegistry,
-            policyFactory,
-            checkerFactory,
-            voiceCreditProxyFactory
+        GovernanceERC20 tokenToClone = new GovernanceERC20(
+            IDAO(address(0x0)),
+            "DAO Voting Token",
+            "DVT",
+            GovernanceERC20.MintSettings({receivers: new address[](0), amounts: new uint256[](0)})
         );
+
+        GovernanceERC20.TokenSettings memory tokenSettings = GovernanceERC20.TokenSettings({
+            name: "DAO Voting Token",
+            symbol: "DVT"
+        });
+        GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20.MintSettings({
+            receivers: new address[](0),
+            amounts: new uint256[](0)
+        });
+
+        setup = new MaciVotingSetup(tokenToClone);
+
+        MaciVotingSetup.SetupMACIParams memory setupMaciParams = MaciVotingSetup.SetupMACIParams({
+            maci: maciAddress,
+            publicKey: coordinatorPublicKey,
+            votingSettings: votingSettings,
+            verifier: verifier,
+            vkRegistry: vkRegistry,
+            policyFactory: policyFactory,
+            checkerFactory: checkerFactory,
+            voiceCreditProxyFactory: voiceCreditProxyFactory
+        });
+
+        bytes memory setupData = abi.encode(setupMaciParams, tokenSettings, mintSettings);
 
         (DAO _dao, address _plugin) = createMockDaoWithPlugin(setup, setupData);
 
@@ -65,6 +86,7 @@ contract MaciVotingInitializeTest is MaciVotingTest {
             maciAddress,
             coordinatorPublicKey,
             votingSettings,
+            IVotesUpgradeable(address(0x0)),
             verifier,
             vkRegistry,
             policyFactory,

@@ -38,6 +38,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     bytes32 public constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
 
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
+    /// compatible contract referencing the token being used for voting.
     IVotesUpgradeable private votingToken;
 
     /// @notice The address of the maci contract.
@@ -151,6 +152,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         address _maci,
         DomainObjs.PublicKey calldata _coordinatorPubKey,
         VotingSettings calldata _votingSettings,
+        IVotesUpgradeable _token,
         address _verifier,
         address _vkRegistry,
         address _policyFactory,
@@ -158,6 +160,8 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         address _voiceCreditProxyFactory
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
+
+        votingToken = _token;
 
         maci = MACI(_maci);
         coordinatorPubKey = _coordinatorPubKey;
