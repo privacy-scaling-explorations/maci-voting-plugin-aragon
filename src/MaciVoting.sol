@@ -34,9 +34,6 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     bytes4 internal constant MACI_VOTING_INTERFACE_ID =
         this.initialize.selector ^ this.getVotingToken.selector;
 
-    /// @notice The ID of the permission required to call the `storeNumber` function.
-    bytes32 public constant CREATE_PROPOSAL_PERMISSION_ID = keccak256("CREATE_PROPOSAL_PERMISSION");
-
     /// @notice The ID of the permission required to call the `execute` function.
     bytes32 public constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
 
@@ -332,7 +329,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         uint256 _allowFailureMap,
         uint64 _startDate,
         uint64 _endDate
-    ) public auth(CREATE_PROPOSAL_PERMISSION_ID) returns (uint256 proposalId) {
+    ) public returns (uint256 proposalId) {
         // Check that either `_msgSender` owns enough tokens or has enough voting power from being a delegatee.
         {
             uint256 minProposerVotingPower_ = minProposerVotingPower();
@@ -408,23 +405,6 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             _startDate,
             _endDate
         );
-    }
-
-    function createProposal(
-        bytes calldata _metadata,
-        IDAO.Action[] calldata _actions,
-        uint64 _startDate,
-        uint64 _endDate,
-        bytes memory _data
-    ) external returns (uint256 proposalId) {
-        // Note that this calls public function for permission check.
-        uint256 allowFailureMap;
-
-        if (_data.length != 0) {
-            (allowFailureMap) = abi.decode(_data, (uint256));
-        }
-
-        proposalId = createProposal(_metadata, _actions, allowFailureMap, _startDate, _endDate);
     }
 
     /// @notice Internal function to check if a proposal can be executed. It assumes the queried proposal exists.
