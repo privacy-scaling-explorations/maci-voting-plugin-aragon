@@ -32,21 +32,23 @@ contract MaciVotingE2E is AragonE2E {
     function setUp() public virtual override {
         super.setUp();
 
-        GovernanceERC20 tokenToClone = new GovernanceERC20(
-            IDAO(address(0x0)),
-            "DAO Voting Token",
-            "DVT",
-            GovernanceERC20.MintSettings({receivers: new address[](0), amounts: new uint256[](0)})
-        );
-
         GovernanceERC20.TokenSettings memory tokenSettings = GovernanceERC20.TokenSettings({
             name: "DAO Voting Token",
             symbol: "DVT"
         });
         GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20.MintSettings({
-            receivers: new address[](0),
-            amounts: new uint256[](0)
+            receivers: new address[](1),
+            amounts: new uint256[](1)
         });
+        mintSettings.receivers[0] = address(0xB0b);
+        mintSettings.amounts[0] = 1000 * 10 ** 18;
+
+        GovernanceERC20 tokenToClone = new GovernanceERC20(
+            IDAO(address(0x0)),
+            tokenSettings.name,
+            tokenSettings.symbol,
+            mintSettings
+        );
 
         setup = new MaciVotingSetup(tokenToClone);
         address _plugin;
