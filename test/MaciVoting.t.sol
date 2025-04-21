@@ -17,7 +17,7 @@ abstract contract MaciVotingTest is AragonTest {
     DAO internal dao;
     MaciVoting internal plugin;
     MaciVotingSetup internal setup;
-    uint256 internal constant NUMBER = 420;
+    uint256 internal forkId;
 
     address internal maciAddress;
     DomainObjs.PublicKey internal coordinatorPublicKey;
@@ -30,24 +30,15 @@ abstract contract MaciVotingTest is AragonTest {
 
     function setUp() public virtual {
         vm.prank(address(0xB0b));
+        forkId = vm.createFork(vm.envString("RPC_URL"));
+        vm.selectFork(forkId);
 
-        GovernanceERC20.TokenSettings memory tokenSettings = GovernanceERC20.TokenSettings({
-            name: "DAO Voting Token",
-            symbol: "DVT"
-        });
-        GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20.MintSettings({
-            receivers: new address[](1),
-            amounts: new uint256[](1)
-        });
-        mintSettings.receivers[0] = address(0xB0b);
-        mintSettings.amounts[0] = 10 * 10 ** 18;
-
-        GovernanceERC20 tokenToClone = new GovernanceERC20(
-            IDAO(address(0x0)),
-            tokenSettings.name,
-            tokenSettings.symbol,
-            mintSettings
-        );
+        setUpMaciAddresses();
+        (
+            GovernanceERC20.TokenSettings memory tokenSettings,
+            GovernanceERC20.MintSettings memory mintSettings,
+            GovernanceERC20 tokenToClone
+        ) = setUpGovernanceToken();
 
         setup = new MaciVotingSetup(tokenToClone);
 
@@ -68,7 +59,57 @@ abstract contract MaciVotingTest is AragonTest {
 
         dao = _dao;
         plugin = MaciVoting(_plugin);
+
+        // Do we need to delegate votes? At the moment: doesnt look like it
+        GovernanceERC20 voteToken = GovernanceERC20(address(plugin.getVotingToken()));
+        voteToken.delegate(address(0xB0b));
+
         vm.roll(block.number + 1);
+    }
+
+    function setUpMaciAddresses() public virtual {
+        maciAddress = vm.envAddress("MACI_ADDRESS");
+        verifier = vm.envAddress("VERIFIER_ADDRESS");
+        vkRegistry = vm.envAddress("VK_REGISTRY_ADDRESS");
+        policyFactory = vm.envAddress("POLICY_FACTORY_ADDRESS");
+        checkerFactory = vm.envAddress("CHECKER_FACTORY_ADDRESS");
+        voiceCreditProxyFactory = vm.envAddress("VOICE_CREDIT_PROXY_FACTORY_ADDRESS");
+
+        coordinatorPublicKey = DomainObjs.PublicKey({
+            x: vm.envUint("COORDINATOR_PUBLIC_KEY_X"),
+            y: vm.envUint("COORDINATOR_PUBLIC_KEY_Y")
+        });
+
+        votingSettings = IMaciVoting.VotingSettings({
+            minParticipation: 0,
+            minDuration: 0,
+            minProposerVotingPower: 0
+        });
+    }
+
+    function setUpGovernanceToken()
+        public
+        virtual
+        returns (
+            GovernanceERC20.TokenSettings memory tokenSettings,
+            GovernanceERC20.MintSettings memory mintSettings,
+            GovernanceERC20 tokenToClone
+        )
+    {
+        tokenSettings = GovernanceERC20.TokenSettings({name: "DAO Voting Token", symbol: "DVT"});
+        mintSettings = GovernanceERC20.MintSettings({
+            receivers: new address[](1),
+            amounts: new uint256[](1)
+        });
+        mintSettings.receivers[0] = address(0xB0b);
+        mintSettings.amounts[0] = 10 * 10 ** 18;
+
+        tokenToClone = new GovernanceERC20(
+            IDAO(address(0x0)),
+            tokenSettings.name,
+            tokenSettings.symbol,
+            mintSettings
+        );
     }
 }
 
@@ -117,11 +158,8 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
             _endDate: uint64(block.timestamp + 1 days)
         });
         assertEq(plugin.proposalCount(), 1);
-        assertEq(
-            proposalId,
-            uint256(
-                keccak256(abi.encode(address(0xB0b), bytes("ipfs://hello"), _actions, block.number))
-            )
-        );
+        assertEq(proposalId, 0);
     }
+
+    function test_executeProposal() public {}
 }

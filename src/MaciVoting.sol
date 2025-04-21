@@ -51,8 +51,8 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @notice The voting settings.
     VotingSettings public votingSettings;
 
-    /// @notice The proposals.
-    Proposal[] public proposals;
+    /// @notice A mapping between proposal IDs and proposal information.
+    mapping(uint256 => Proposal) internal proposals;
 
     /// @notice The policy factory for the polls
     IERC20VotesPolicyFactory public policyFactory;
@@ -339,7 +339,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             uint256 minProposerVotingPower_ = minProposerVotingPower();
 
             if (minProposerVotingPower_ != 0) {
-                // Because of the checks in `TokenVotingSetup`, we can assume that `votingToken` is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
+                // Because of the checks in `MaciVotingSetup`, we can assume that `votingToken` is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
                 if (
                     votingToken.getVotes(_msgSender()) < minProposerVotingPower_ &&
                     IVotesUpgradeable(address(votingToken)).getVotes(_msgSender()) <
@@ -354,7 +354,6 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         unchecked {
             snapshotBlock = block.number - 1; // The snapshot block must be mined already to protect the transaction against backrunning transactions causing census changes.
         }
-
         uint256 totalVotingPower_ = totalVotingPower(snapshotBlock);
 
         if (totalVotingPower_ == 0) {
@@ -362,16 +361,13 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         }
 
         (_startDate, _endDate) = _validateProposalDates(_startDate, _endDate);
-
         proposalId = _createProposalId();
-
-        // Store proposal related information
-        Proposal storage proposal_ = proposals[proposalId];
-
         if (_proposalExists(proposalId)) {
             revert ProposalAlreadyExists(proposalId);
         }
 
+        // Store proposal related information
+        Proposal storage proposal_ = proposals[proposalId];
         proposal_.parameters.startDate = _startDate;
         proposal_.parameters.endDate = _endDate;
         proposal_.parameters.snapshotBlock = snapshotBlock.toUint64();
