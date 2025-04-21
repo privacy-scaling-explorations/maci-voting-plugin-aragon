@@ -12,6 +12,7 @@ import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
 import {MaciVoting} from "../src/MaciVoting.sol";
 import {IMaciVoting} from "../src/IMaciVoting.sol";
 import {GovernanceERC20} from "../src/ERC20Votes/GovernanceERC20.sol";
+import {Utils} from "../script/Utils.sol";
 
 abstract contract MaciVotingTest is AragonTest {
     DAO internal dao;
@@ -19,26 +20,26 @@ abstract contract MaciVotingTest is AragonTest {
     MaciVotingSetup internal setup;
     uint256 internal forkId;
 
-    address internal maciAddress;
-    DomainObjs.PublicKey internal coordinatorPublicKey;
-    IMaciVoting.VotingSettings internal votingSettings;
-    address internal verifier;
-    address internal vkRegistry;
-    address internal policyFactory;
-    address internal checkerFactory;
-    address internal voiceCreditProxyFactory;
-
     function setUp() public virtual {
         vm.prank(address(0xB0b));
         forkId = vm.createFork(vm.envString("RPC_URL"));
         vm.selectFork(forkId);
 
-        setUpMaciAddresses();
         (
+            address maciAddress,
+            DomainObjs.PublicKey memory coordinatorPublicKey,
+            IMaciVoting.VotingSettings memory votingSettings,
+            address verifier,
+            address vkRegistry,
+            address policyFactory,
+            address checkerFactory,
+            address voiceCreditProxyFactory
+        ) = Utils.readMaciAddresses();
+        (
+            GovernanceERC20 tokenToClone,
             GovernanceERC20.TokenSettings memory tokenSettings,
-            GovernanceERC20.MintSettings memory mintSettings,
-            GovernanceERC20 tokenToClone
-        ) = setUpGovernanceToken();
+            GovernanceERC20.MintSettings memory mintSettings
+        ) = Utils.getGovernanceTokenAndMintSettings();
 
         setup = new MaciVotingSetup(tokenToClone);
 
@@ -66,51 +67,6 @@ abstract contract MaciVotingTest is AragonTest {
 
         vm.roll(block.number + 1);
     }
-
-    function setUpMaciAddresses() public virtual {
-        maciAddress = vm.envAddress("MACI_ADDRESS");
-        verifier = vm.envAddress("VERIFIER_ADDRESS");
-        vkRegistry = vm.envAddress("VK_REGISTRY_ADDRESS");
-        policyFactory = vm.envAddress("POLICY_FACTORY_ADDRESS");
-        checkerFactory = vm.envAddress("CHECKER_FACTORY_ADDRESS");
-        voiceCreditProxyFactory = vm.envAddress("VOICE_CREDIT_PROXY_FACTORY_ADDRESS");
-
-        coordinatorPublicKey = DomainObjs.PublicKey({
-            x: vm.envUint("COORDINATOR_PUBLIC_KEY_X"),
-            y: vm.envUint("COORDINATOR_PUBLIC_KEY_Y")
-        });
-
-        votingSettings = IMaciVoting.VotingSettings({
-            minParticipation: 0,
-            minDuration: 0,
-            minProposerVotingPower: 0
-        });
-    }
-
-    function setUpGovernanceToken()
-        public
-        virtual
-        returns (
-            GovernanceERC20.TokenSettings memory tokenSettings,
-            GovernanceERC20.MintSettings memory mintSettings,
-            GovernanceERC20 tokenToClone
-        )
-    {
-        tokenSettings = GovernanceERC20.TokenSettings({name: "DAO Voting Token", symbol: "DVT"});
-        mintSettings = GovernanceERC20.MintSettings({
-            receivers: new address[](1),
-            amounts: new uint256[](1)
-        });
-        mintSettings.receivers[0] = address(0xB0b);
-        mintSettings.amounts[0] = 10 * 10 ** 18;
-
-        tokenToClone = new GovernanceERC20(
-            IDAO(address(0x0)),
-            tokenSettings.name,
-            tokenSettings.symbol,
-            mintSettings
-        );
-    }
 }
 
 contract MaciVotingInitializeTest is MaciVotingTest {
@@ -123,6 +79,16 @@ contract MaciVotingInitializeTest is MaciVotingTest {
     }
 
     function test_reverts_if_reinitialized() public {
+        (
+            address maciAddress,
+            DomainObjs.PublicKey memory coordinatorPublicKey,
+            IMaciVoting.VotingSettings memory votingSettings,
+            address verifier,
+            address vkRegistry,
+            address policyFactory,
+            address checkerFactory,
+            address voiceCreditProxyFactory
+        ) = Utils.readMaciAddresses();
         vm.expectRevert("Initializable: contract is already initialized");
         plugin.initialize(
             dao,

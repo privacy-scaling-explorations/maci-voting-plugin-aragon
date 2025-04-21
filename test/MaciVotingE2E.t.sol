@@ -12,6 +12,7 @@ import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
 import {MaciVoting} from "../src/MaciVoting.sol";
 import {IMaciVoting} from "../src/IMaciVoting.sol";
 import {GovernanceERC20} from "../src/ERC20Votes/GovernanceERC20.sol";
+import {Utils} from "../script/Utils.sol";
 
 contract MaciVotingE2E is AragonE2E {
     DAO internal dao;
@@ -32,23 +33,11 @@ contract MaciVotingE2E is AragonE2E {
     function setUp() public virtual override {
         super.setUp();
 
-        GovernanceERC20.TokenSettings memory tokenSettings = GovernanceERC20.TokenSettings({
-            name: "DAO Voting Token",
-            symbol: "DVT"
-        });
-        GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20.MintSettings({
-            receivers: new address[](1),
-            amounts: new uint256[](1)
-        });
-        mintSettings.receivers[0] = address(0xB0b);
-        mintSettings.amounts[0] = 1000 * 10 ** 18;
-
-        GovernanceERC20 tokenToClone = new GovernanceERC20(
-            IDAO(address(0x0)),
-            tokenSettings.name,
-            tokenSettings.symbol,
-            mintSettings
-        );
+        (
+            GovernanceERC20 tokenToClone,
+            GovernanceERC20.TokenSettings memory tokenSettings,
+            GovernanceERC20.MintSettings memory mintSettings
+        ) = Utils.getGovernanceTokenAndMintSettings();
 
         setup = new MaciVotingSetup(tokenToClone);
         address _plugin;

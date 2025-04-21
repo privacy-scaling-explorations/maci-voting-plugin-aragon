@@ -15,43 +15,18 @@ import {MaciVoting} from "../src/MaciVoting.sol";
 import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
 import {IMaciVoting} from "../src/IMaciVoting.sol";
 import {GovernanceERC20} from "../src/ERC20Votes/GovernanceERC20.sol";
+import {Utils} from "../script/Utils.sol";
 
 contract MaciVotingScript is Script {
     address pluginRepoFactory;
     DAOFactory daoFactory;
     string nameWithEntropy;
     address[] pluginAddress;
-    address maciAddress;
-    address verifier;
-    address vkRegistry;
-    address policyFactory;
-    address checkerFactory;
-    address voiceCreditProxyFactory;
-    DomainObjs.PublicKey coordinatorPublicKey;
-    IMaciVoting.VotingSettings votingSettings;
 
     function setUp() public {
         pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
         daoFactory = DAOFactory(vm.envAddress("DAO_FACTORY"));
         nameWithEntropy = string.concat("maci-voting-plugin-", vm.toString(block.timestamp));
-
-        maciAddress = vm.envAddress("MACI_ADDRESS");
-        verifier = vm.envAddress("VERIFIER_ADDRESS");
-        vkRegistry = vm.envAddress("VK_REGISTRY_ADDRESS");
-        policyFactory = vm.envAddress("POLICY_FACTORY_ADDRESS");
-        checkerFactory = vm.envAddress("CHECKER_FACTORY_ADDRESS");
-        voiceCreditProxyFactory = vm.envAddress("VOICE_CREDIT_PROXY_FACTORY_ADDRESS");
-
-        coordinatorPublicKey = DomainObjs.PublicKey({
-            x: vm.envUint("COORDINATOR_PUBLIC_KEY_X"),
-            y: vm.envUint("COORDINATOR_PUBLIC_KEY_Y")
-        });
-
-        votingSettings = IMaciVoting.VotingSettings({
-            minParticipation: 0,
-            minDuration: 0,
-            minProposerVotingPower: 0
-        });
     }
 
     function run() public {
@@ -99,23 +74,7 @@ contract MaciVotingScript is Script {
     }
 
     function deployPluginSetup() public returns (MaciVotingSetup) {
-        GovernanceERC20.TokenSettings memory tokenSettings = GovernanceERC20.TokenSettings({
-            name: "DAO Voting Token",
-            symbol: "DVT"
-        });
-        GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20.MintSettings({
-            receivers: new address[](1),
-            amounts: new uint256[](1)
-        });
-        mintSettings.receivers[0] = address(0xB0b);
-        mintSettings.amounts[0] = 1000 * 10 ** 18;
-
-        GovernanceERC20 tokenToClone = new GovernanceERC20(
-            IDAO(address(0x0)),
-            tokenSettings.name,
-            tokenSettings.symbol,
-            mintSettings
-        );
+        (GovernanceERC20 tokenToClone, , ) = Utils.getGovernanceTokenAndMintSettings();
 
         MaciVotingSetup pluginSetup = new MaciVotingSetup(tokenToClone);
         return pluginSetup;
@@ -135,19 +94,27 @@ contract MaciVotingScript is Script {
         return DAOFactory.DAOSettings(address(0), "", nameWithEntropy, "");
     }
 
-    function getPluginSettings(
-        PluginRepo pluginRepo
-    ) public view returns (DAOFactory.PluginSettings[] memory pluginSettings) {
-        GovernanceERC20.TokenSettings memory tokenSettings = GovernanceERC20.TokenSettings({
-            name: "DAO Voting Token",
-            symbol: "DVT"
-        });
-        GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20.MintSettings({
-            receivers: new address[](0),
-            amounts: new uint256[](0)
-        });
+    function getMaciVotingSetupParams()
+        internal
+        returns (
+            MaciVotingSetup.SetupMACIParams memory setupMaciParams,
+            GovernanceERC20.TokenSettings memory tokenSettings,
+            GovernanceERC20.MintSettings memory mintSettings
+        )
+    {
+        (, tokenSettings, mintSettings) = Utils.getGovernanceTokenAndMintSettings();
+        (
+            address maciAddress,
+            DomainObjs.PublicKey memory coordinatorPublicKey,
+            IMaciVoting.VotingSettings memory votingSettings,
+            address verifier,
+            address vkRegistry,
+            address policyFactory,
+            address checkerFactory,
+            address voiceCreditProxyFactory
+        ) = Utils.readMaciAddresses();
 
-        MaciVotingSetup.SetupMACIParams memory setupMaciParams = MaciVotingSetup.SetupMACIParams({
+        setupMaciParams = MaciVotingSetup.SetupMACIParams({
             maci: maciAddress,
             publicKey: coordinatorPublicKey,
             votingSettings: votingSettings,
@@ -158,6 +125,17 @@ contract MaciVotingScript is Script {
             voiceCreditProxyFactory: voiceCreditProxyFactory
         });
 
+        return (setupMaciParams, tokenSettings, mintSettings);
+    }
+
+    function getPluginSettings(
+        PluginRepo pluginRepo
+    ) public returns (DAOFactory.PluginSettings[] memory pluginSettings) {
+        (
+            MaciVotingSetup.SetupMACIParams memory setupMaciParams,
+            GovernanceERC20.TokenSettings memory tokenSettings,
+            GovernanceERC20.MintSettings memory mintSettings
+        ) = getMaciVotingSetupParams();
         bytes memory pluginSettingsData = abi.encode(setupMaciParams, tokenSettings, mintSettings);
 
         PluginRepo.Tag memory tag = PluginRepo.Tag(1, 1);
