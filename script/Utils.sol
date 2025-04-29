@@ -37,7 +37,7 @@ library Utils {
             x: vm.envUint("COORDINATOR_PUBLIC_KEY_X"),
             y: vm.envUint("COORDINATOR_PUBLIC_KEY_Y")
         });
-        vs = IMaciVoting.VotingSettings(0, 0, 0);
+        vs = IMaciVoting.VotingSettings(0, 0, 1);
     }
 
     function getGovernanceTokenAndMintSettings()

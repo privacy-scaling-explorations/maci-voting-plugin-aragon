@@ -15,6 +15,7 @@ import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObj
 import {Tally} from "@maci-protocol/contracts/contracts/Tally.sol";
 import {IMACI} from "@maci-protocol/contracts/contracts/interfaces/IMACI.sol";
 import {Params} from "@maci-protocol/contracts/contracts/utilities/Params.sol";
+import {IPolicy} from "@excubiae/contracts/contracts/interfaces/IPolicy.sol";
 
 import {IMaciVoting} from "./IMaciVoting.sol";
 import {IERC20VotesCheckerFactory} from "./IERC20VotesCheckerFactory.sol";
@@ -264,6 +265,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
         uint256 pollId = IMACI(maci).nextPollId();
         IMACI.PollContracts memory pollContracts = IMACI(maci).deployPoll(deployPollArgs);
+        IPolicy(policy).setTarget(pollContracts.poll);
 
         return (pollId, pollContracts);
     }
