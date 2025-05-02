@@ -58,10 +58,10 @@ library Utils {
         });
         // local tests
         mintSettings.receivers[0] = address(0xB0b);
-        mintSettings.amounts[0] = 1000 * 10 ** 18;
+        mintSettings.amounts[0] = 1 * 10 ** 18;
         // Nico's address for UI tests
         mintSettings.receivers[1] = address(0xE4721A80C6e56f4ebeed6acEE91b3ee715e7dD64);
-        mintSettings.amounts[1] = 1000 * 10 ** 18;
+        mintSettings.amounts[1] = 5 * 10 ** 18;
 
         GovernanceERC20 tokenToClone = new GovernanceERC20(
             IDAO(address(0x0)),

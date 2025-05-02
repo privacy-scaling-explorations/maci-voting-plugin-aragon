@@ -108,10 +108,37 @@ contract MaciVotingInitializeTest is MaciVotingTest {
 contract MaciVotingProposalCreationTest is MaciVotingTest {
     function setUp() public override {
         super.setUp();
+        // Uncomment this to check an existing deployed plugin
+        // plugin = MaciVoting(0xA60187Ef04a44bcd06754E660bf78079f298fc02);
     }
 
-    function test_createProposal() public {
-        vm.prank(address(0xB0b));
+    function test_0_erc20votes_assigned() public {
+        address voteToken = address(plugin.getVotingToken());
+
+        address unknownWallet = address(0x0A);
+        uint256 unknownBalance = IVotesUpgradeable(voteToken).getVotes(unknownWallet);
+
+        address bobWallet = address(0xB0b);
+        uint256 bobBalance = IVotesUpgradeable(voteToken).getVotes(bobWallet);
+
+        address aliceWallet = address(0xE4721A80C6e56f4ebeed6acEE91b3ee715e7dD64);
+        uint256 aliceBalance = IVotesUpgradeable(voteToken).getVotes(aliceWallet);
+
+        uint256 totalVotingPower = plugin.totalVotingPower(block.number - 1);
+
+        (, , GovernanceERC20.MintSettings memory mintSettings) = Utils
+            .getGovernanceTokenAndMintSettings();
+
+        assertEq(unknownBalance, 0);
+        assertEq(mintSettings.receivers[0], bobWallet);
+        assertEq(mintSettings.receivers[1], aliceWallet);
+        assertEq(mintSettings.amounts[0], 1 * 10 ** 18);
+        assertEq(mintSettings.amounts[1], 5 * 10 ** 18);
+        assertEq(totalVotingPower, bobBalance + aliceBalance);
+    }
+
+    function test_1_createProposal() public {
+        vm.startPrank(address(0xB0b));
 
         IDAO.Action[] memory _actions = new IDAO.Action[](1);
         _actions[0] = IDAO.Action({to: address(0x0), value: 0, data: bytes("0x00")});
@@ -125,7 +152,63 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
         });
         assertEq(plugin.proposalCount(), 1);
         assertEq(proposalId, 0);
+
+        vm.stopPrank();
     }
 
-    function test_executeProposal() public {}
+    function test_2_createProposal_reverts_if_not_enough_voting_power() public {
+        vm.startPrank(address(0x0A));
+
+        if (plugin.minProposerVotingPower() == 0) {
+            // we can always create a proposal
+            return;
+        }
+
+        IDAO.Action[] memory _actions = new IDAO.Action[](1);
+        _actions[0] = IDAO.Action({to: address(0x0), value: 0, data: bytes("0x00")});
+
+        // Create a proposal
+        vm.expectRevert(
+            abi.encodeWithSelector(MaciVoting.ProposalCreationForbidden.selector, address(0x0A))
+        );
+        plugin.createProposal({
+            _metadata: bytes("ipfs://hello"),
+            _actions: _actions,
+            _allowFailureMap: 0,
+            _startDate: uint64(block.timestamp + 5 minutes),
+            _endDate: uint64(block.timestamp + 1 days)
+        });
+
+        vm.stopPrank();
+    }
+}
+
+contract MaciVotingProposalExecutionTest is MaciVotingTest {
+    function setUp() public override {
+        super.setUp();
+    }
+
+    /*
+    function test_execute() public {
+        vm.startPrank(address(0xB0b));
+
+        IDAO.Action[] memory _actions = new IDAO.Action[](1);
+        _actions[0] = IDAO.Action({to: address(0x0), value: 0, data: bytes("0x00")});
+
+        // Create a proposal
+        uint256 proposalId = plugin.createProposal({
+            _metadata: bytes("ipfs://hello"),
+            _actions: _actions,
+            _allowFailureMap: 0,
+            _startDate: uint64(block.timestamp + 5 minutes),
+            _endDate: uint64(block.timestamp + 1 days)
+        });
+
+        vm.warp(block.timestamp + 2 days);
+
+        plugin.execute(proposalId);
+
+        vm.stopPrank();
+    }
+    */
 }

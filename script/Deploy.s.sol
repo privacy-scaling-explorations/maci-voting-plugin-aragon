@@ -74,7 +74,13 @@ contract MaciVotingScript is Script {
     }
 
     function deployPluginSetup() public returns (MaciVotingSetup) {
-        (GovernanceERC20 tokenToClone, , ) = Utils.getGovernanceTokenAndMintSettings();
+        // this ERC20 is just a placeholder, it will be cloned with token and mint settings from Utils
+        GovernanceERC20 tokenToClone = new GovernanceERC20(
+            IDAO(address(0x0)),
+            "",
+            "",
+            GovernanceERC20.MintSettings({receivers: new address[](0), amounts: new uint256[](0)})
+        );
 
         MaciVotingSetup pluginSetup = new MaciVotingSetup(tokenToClone);
         return pluginSetup;
