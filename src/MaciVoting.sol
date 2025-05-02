@@ -109,6 +109,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     }
 
     /// @notice A container for proposal-related information.
+    /// @param active Whether the proposal is active or not (it could have expired).
     /// @param executed Whether the proposal is executed or not.
     /// @param parameters The proposal parameters at the time of the proposal creation.
     /// @param actions The actions to be executed when the proposal passes.
@@ -119,6 +120,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @param pollId The ID of the MACI poll
     /// @param pollAddress The address of the MACI poll
     struct Proposal {
+        bool active;
         bool executed;
         ProposalParameters parameters;
         IDAO.Action[] actions;
@@ -219,6 +221,10 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
     function hasSucceeded(uint256 _proposalId) external view returns (bool) {
         return proposals[_proposalId].executed;
+    }
+
+    function getProposal(uint256 _proposalId) external view returns (Proposal memory proposal_) {
+        proposal_ = proposals[_proposalId];
     }
 
     /// @notice Deploy a poll in MACI
@@ -370,6 +376,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
         // Store proposal related information
         Proposal storage proposal_ = proposals[proposalId];
+        proposal_.active = true;
         proposal_.parameters.startDate = _startDate;
         proposal_.parameters.endDate = _endDate;
         proposal_.parameters.snapshotBlock = snapshotBlock.toUint64();

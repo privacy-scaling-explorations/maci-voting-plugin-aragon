@@ -183,12 +183,12 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
     }
 }
 
+/*
 contract MaciVotingProposalExecutionTest is MaciVotingTest {
     function setUp() public override {
         super.setUp();
     }
 
-    /*
     function test_execute() public {
         vm.startPrank(address(0xB0b));
 
@@ -206,9 +206,11 @@ contract MaciVotingProposalExecutionTest is MaciVotingTest {
 
         vm.warp(block.timestamp + 2 days);
 
+        // TODO: prove and tally results
+
         plugin.execute(proposalId);
 
         vm.stopPrank();
     }
-    */
 }
+*/
