@@ -108,6 +108,16 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         uint256 minVotingPower;
     }
 
+    /// @notice A container for the results of the voting. We read from the poll and store the results here.
+    /// @param yes The number of votes for the "yes" option.
+    /// @param no The number of votes for the "no" option.
+    /// @param abstain The number of votes for the "abstain" option.
+    struct TallyResults {
+        uint256 yes;
+        uint256 no;
+        uint256 abstain;
+    }
+
     /// @notice A container for proposal-related information.
     /// @param active Whether the proposal is active or not (it could have expired).
     /// @param executed Whether the proposal is executed or not.
@@ -123,6 +133,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         bool active;
         bool executed;
         ProposalParameters parameters;
+        TallyResults tally;
         IDAO.Action[] actions;
         uint256 allowFailureMap;
         uint256 pollId;
@@ -419,7 +430,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @notice Internal function to check if a proposal can be executed. It assumes the queried proposal exists.
     /// @param _proposalId The ID of the proposal.
     /// @return True if the proposal can be executed, false otherwise.
-    function _canExecute(uint256 _proposalId) internal view virtual returns (bool) {
+    function _canExecute(uint256 _proposalId) internal virtual returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
         IMACI.PollContracts memory pollContracts = maci.getPoll(proposal_.pollId);
@@ -447,6 +458,10 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             return false;
         }
 
+        // Save the results in the proposal struct for faster access
+        proposal_.tally.yes = yesValue;
+        proposal_.tally.no = noValue;
+
         if (yesValue < noValue) {
             return false;
         }
@@ -462,7 +477,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     }
 
     /// @dev Reverts if the proposal with the given `_proposalId` does not exist.
-    function canExecute(uint256 _proposalId) public view virtual returns (bool) {
+    function canExecute(uint256 _proposalId) public virtual returns (bool) {
         if (!_proposalExists(_proposalId)) {
             revert NonexistentProposal(_proposalId);
         }
