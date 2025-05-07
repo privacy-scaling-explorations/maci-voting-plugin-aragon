@@ -430,7 +430,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @notice Internal function to check if a proposal can be executed. It assumes the queried proposal exists.
     /// @param _proposalId The ID of the proposal.
     /// @return True if the proposal can be executed, false otherwise.
-    function _canExecute(uint256 _proposalId) internal virtual returns (bool) {
+    function _canExecute(uint256 _proposalId) internal view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
         IMACI.PollContracts memory pollContracts = maci.getPoll(proposal_.pollId);
@@ -458,10 +458,6 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             return false;
         }
 
-        // Save the results in the proposal struct for faster access
-        proposal_.tally.yes = yesValue;
-        proposal_.tally.no = noValue;
-
         if (yesValue < noValue) {
             return false;
         }
@@ -477,7 +473,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     }
 
     /// @dev Reverts if the proposal with the given `_proposalId` does not exist.
-    function canExecute(uint256 _proposalId) public virtual returns (bool) {
+    function canExecute(uint256 _proposalId) public view returns (bool) {
         if (!_proposalExists(_proposalId)) {
             revert NonexistentProposal(_proposalId);
         }
@@ -495,6 +491,16 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         Proposal storage proposal_ = proposals[_proposalId];
 
         proposal_.executed = true;
+
+        IMACI.PollContracts memory pollContracts = maci.getPoll(proposal_.pollId);
+        Tally tally_ = Tally(pollContracts.tally);
+
+        (uint256 noValue, ) = tally_.tallyResults(0);
+        (uint256 yesValue, ) = tally_.tallyResults(1);
+
+        // Save the results in the proposal struct for faster access
+        proposal_.tally.yes = yesValue;
+        proposal_.tally.no = noValue;
 
         _executeProposal(dao(), _proposalId, proposal_.actions, proposal_.allowFailureMap);
 
