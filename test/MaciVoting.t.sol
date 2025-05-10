@@ -152,6 +152,7 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
         });
         assertEq(plugin.proposalCount(), 1);
         assertEq(proposalId, 0);
+        assertEq(plugin.getProposal(proposalId).parameters.snapshotBlock, block.number - 1);
 
         vm.stopPrank();
     }

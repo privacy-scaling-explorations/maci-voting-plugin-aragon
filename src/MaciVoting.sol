@@ -104,7 +104,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     struct ProposalParameters {
         uint64 startDate;
         uint64 endDate;
-        uint64 snapshotBlock;
+        uint256 snapshotBlock;
         uint256 minVotingPower;
     }
 
@@ -390,7 +390,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         proposal_.active = true;
         proposal_.parameters.startDate = _startDate;
         proposal_.parameters.endDate = _endDate;
-        proposal_.parameters.snapshotBlock = snapshotBlock.toUint64();
+        proposal_.parameters.snapshotBlock = snapshotBlock;
         proposal_.parameters.minVotingPower = _applyRatioCeiled(
             totalVotingPower_,
             minParticipation()
