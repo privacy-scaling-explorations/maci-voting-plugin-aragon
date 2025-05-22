@@ -187,7 +187,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         voiceCreditProxyFactory = IInitialVoiceCreditsProxyFactory(_voiceCreditProxyFactory);
 
         treeDepths = Params.TreeDepths({
-            intStateTreeDepth: INT_STATE_TREE_DEPTH,
+            tallyProcessingStateTreeDepth: INT_STATE_TREE_DEPTH,
             voteOptionTreeDepth: VOTE_OPTION_TREE_DEPTH,
             stateTreeDepth: STATE_TREE_DEPTH
         });
@@ -271,7 +271,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             messageBatchSize: 20,
             coordinatorPublicKey: coordinatorPubKey,
             verifier: verifier,
-            vkRegistry: vkRegistry,
+            verifyingKeysRegistry: vkRegistry,
             mode: DomainObjs.Mode.NON_QV,
             policy: policy,
             initialVoiceCreditProxy: initialVoiceCreditProxy,

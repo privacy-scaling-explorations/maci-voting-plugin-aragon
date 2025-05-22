@@ -37,7 +37,7 @@
     "solhint-plugin-prettier": "^0.0.5"
   },
   "dependencies": {
-    "@maci-protocol/contracts": "0.0.0-ci.ba57a70",
+    "@maci-protocol/contracts": "0.0.0-ci.2cc4cdc",
     "@excubiae/contracts": "0.11.0",
     "solady": "0.1.4"
   }
