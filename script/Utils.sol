@@ -53,8 +53,8 @@ library Utils {
             symbol: "DVT"
         });
         GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20.MintSettings({
-            receivers: new address[](2),
-            amounts: new uint256[](2)
+            receivers: new address[](3),
+            amounts: new uint256[](3)
         });
         // local tests
         mintSettings.receivers[0] = address(0xB0b);
@@ -62,6 +62,9 @@ library Utils {
         // Nico's address for UI tests
         mintSettings.receivers[1] = address(0xE4721A80C6e56f4ebeed6acEE91b3ee715e7dD64);
         mintSettings.amounts[1] = 5 * 10 ** 18;
+        // John's address for UI tests
+        mintSettings.receivers[2] = address(0x91AdDB0E8443C83bAf2aDa6B8157B38f814F0bcC);
+        mintSettings.amounts[2] = 5 * 10 ** 18;
 
         GovernanceERC20 tokenToClone = new GovernanceERC20(
             IDAO(address(0x0)),
