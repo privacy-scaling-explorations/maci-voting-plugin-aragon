@@ -36,7 +36,7 @@ Deploy your plugin to a network:
 
 ```bash
 source .env
-forge script script/Deploy.s.sol --broadcast --rpc-url <RPC_URL>
+forge script script/Deploy.s.sol --broadcast --rpc-url $RPC_URL
 ```
 
 Contributing 🤝
