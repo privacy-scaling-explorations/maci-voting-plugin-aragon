@@ -65,14 +65,14 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @notice The verifier for the polls
     address public verifier;
     /// @notice The vk registry for the polls
-    address public vkRegistry;
+    address public verifyingKeysRegistry;
 
     /// @notice determines the capacity of the state tree
     uint8 public constant STATE_TREE_DEPTH = 10;
     // we only need 3 options -> 5 ** 1 = 5 capacity
-    uint8 public constant VOTE_OPTION_TREE_DEPTH = 1;
+    uint8 public constant VOTE_OPTION_TREE_DEPTH = 2;
     /// @notice determins the capacity of the int state tree
-    uint8 public constant INT_STATE_TREE_DEPTH = 2;
+    uint8 public constant TALLY_PROCESSING_STATE_TREE_DEPTH = 1;
 
     /// @notice The tree depths for the polls
     Params.TreeDepths treeDepths;
@@ -160,7 +160,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @param _coordinatorPubKey The coordinator public key.
     /// @param _votingSettings The voting settings.
     /// @param _verifier The address of the verifier.
-    /// @param _vkRegistry The address of the vk registry.
+    /// @param _verifyingKeysRegistry The address of the vk registry.
     function initialize(
         IDAO _dao,
         address _maci,
@@ -168,7 +168,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         VotingSettings calldata _votingSettings,
         IVotesUpgradeable _token,
         address _verifier,
-        address _vkRegistry,
+        address _verifyingKeysRegistry,
         address _policyFactory,
         address _checkerFactory,
         address _voiceCreditProxyFactory
@@ -181,13 +181,13 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         coordinatorPubKey = _coordinatorPubKey;
         votingSettings = _votingSettings;
         verifier = _verifier;
-        vkRegistry = _vkRegistry;
+        verifyingKeysRegistry = _verifyingKeysRegistry;
         policyFactory = IERC20VotesPolicyFactory(_policyFactory);
         checkerFactory = IERC20VotesCheckerFactory(_checkerFactory);
         voiceCreditProxyFactory = IInitialVoiceCreditsProxyFactory(_voiceCreditProxyFactory);
 
         treeDepths = Params.TreeDepths({
-            tallyProcessingStateTreeDepth: INT_STATE_TREE_DEPTH,
+            tallyProcessingStateTreeDepth: TALLY_PROCESSING_STATE_TREE_DEPTH,
             voteOptionTreeDepth: VOTE_OPTION_TREE_DEPTH,
             stateTreeDepth: STATE_TREE_DEPTH
         });
@@ -271,7 +271,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             messageBatchSize: 20,
             coordinatorPublicKey: coordinatorPubKey,
             verifier: verifier,
-            verifyingKeysRegistry: vkRegistry,
+            verifyingKeysRegistry: verifyingKeysRegistry,
             mode: DomainObjs.Mode.NON_QV,
             policy: policy,
             initialVoiceCreditProxy: initialVoiceCreditProxy,
