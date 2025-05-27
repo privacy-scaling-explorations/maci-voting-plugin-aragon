@@ -27,13 +27,31 @@ library Utils {
         uint8 messageBatchSize;
     }
 
+    function parseMode(string memory mode) internal pure returns (DomainObjs.Mode) {
+        if (keccak256(abi.encodePacked(mode)) == keccak256(abi.encodePacked("QV"))) {
+            return DomainObjs.Mode.QV;
+        } else if (keccak256(abi.encodePacked(mode)) == keccak256(abi.encodePacked("NON_QV"))) {
+            return DomainObjs.Mode.NON_QV;
+        } else if (keccak256(abi.encodePacked(mode)) == keccak256(abi.encodePacked("FULL"))) {
+            return DomainObjs.Mode.FULL;
+        } else {
+            revert("Invalid mode string (expected QV, NON_QV, or FULL)");
+        }
+    }
+
     function readMaciEnv() public view returns (MaciEnvVariables memory maciEnvVariables) {
         maciEnvVariables.maci = vm.envAddress("MACI_ADDRESS");
         maciEnvVariables.coordinatorPublicKey = DomainObjs.PublicKey({
             x: vm.envUint("COORDINATOR_PUBLIC_KEY_X"),
             y: vm.envUint("COORDINATOR_PUBLIC_KEY_Y")
         });
-        maciEnvVariables.votingSettings = IMaciVoting.VotingSettings(0, 0, 1);
+        maciEnvVariables.votingSettings = IMaciVoting.VotingSettings(
+            uint8(vm.envUint("MINIMUM_PARTICIPATION")),
+            uint8(vm.envUint("MINIMUM_DURATION")),
+            vm.envUint("MINIMUM_PROPOSER_VOTING_POWER"),
+            uint8(vm.envUint("VOTE_OPTIONS")),
+            parseMode(vm.envString("MODE"))
+        );
         maciEnvVariables.verifier = vm.envAddress("VERIFIER_ADDRESS");
         maciEnvVariables.verifyingKeysRegistry = vm.envAddress("VERIFYING_KEY_REGISTRY_ADDRESS");
         maciEnvVariables.policyFactory = vm.envAddress("POLICY_FACTORY_ADDRESS");

@@ -27,5 +27,7 @@ interface IMaciVoting {
         uint32 minParticipation;
         uint64 minDuration;
         uint256 minProposerVotingPower;
+        uint8 voteOptions;
+        DomainObjs.Mode mode;
     }
 }

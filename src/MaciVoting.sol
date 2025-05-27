@@ -247,12 +247,11 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             coordinatorPublicKey: coordinatorPubKey,
             verifier: verifier,
             verifyingKeysRegistry: verifyingKeysRegistry,
-            mode: DomainObjs.Mode.NON_QV,
+            mode: votingSettings.mode,
             policy: policy,
             initialVoiceCreditProxy: initialVoiceCreditProxy,
             relayers: relayers,
-            // yes - no - abstain
-            voteOptions: 3
+            voteOptions: votingSettings.voteOptions
         });
 
         uint256 pollId = IMACI(maci).nextPollId();
