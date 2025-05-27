@@ -12,3 +12,4 @@ openzeppelin-contracts/=lib/openzeppelin-contracts/
 
 @maci-protocol/contracts/=lib/maci/packages/contracts
 @excubiae/contracts/=lib/excubiae/packages/contracts
+solady/=lib/solady

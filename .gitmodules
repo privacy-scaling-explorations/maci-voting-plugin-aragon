@@ -16,8 +16,12 @@
 	path = lib/ens-contracts
 	url = https://github.com/ensdomains/ens-contracts
 [submodule "lib/maci"]
+	branch = dev
 	path = lib/maci
 	url = https://github.com/privacy-scaling-explorations/maci
 [submodule "lib/excubiae"]
 	path = lib/excubiae
-	url = https://github.com//privacy-scaling-explorations/excubiae
+	url = https://github.com/privacy-scaling-explorations/excubiae
+[submodule "lib/solady"]
+	path = lib/solady
+	url = https://github.com/Vectorized/solady
