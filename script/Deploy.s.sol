@@ -12,8 +12,6 @@ import {hashHelpers, PluginSetupRef} from "@aragon/osx/framework/plugin/setup/Pl
 
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
-import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
-
 import {MaciVoting} from "../src/MaciVoting.sol";
 import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
 import {IMaciVoting} from "../src/IMaciVoting.sol";

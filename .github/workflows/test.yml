@@ -28,6 +28,9 @@ jobs:
           source .env
           set +a
 
+      - name: Install dependencies
+        run: forge install
+
       - name: Run Forge build
         run: |
           forge --version

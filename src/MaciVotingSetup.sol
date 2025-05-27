@@ -10,7 +10,6 @@ import {PluginSetup, IPluginSetup} from "@aragon/osx/framework/plugin/setup/Plug
 import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 
-import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 import {Params} from "@maci-protocol/contracts/contracts/utilities/Params.sol";
 
 import {IMaciVoting} from "./IMaciVoting.sol";

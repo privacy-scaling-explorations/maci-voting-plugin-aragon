@@ -1,4 +1,3 @@
-@prb/test/=lib/prb-test/src/
 forge-std/=lib/forge-std/src/
 @aragon/osx/=lib/osx/packages/contracts/src
 @ensdomains/ens-contracts/=lib/ens-contracts/
@@ -11,6 +10,5 @@ erc4626-tests/=lib/openzeppelin-contracts-upgradeable/lib/erc4626-tests/
 openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/
 openzeppelin-contracts/=lib/openzeppelin-contracts/
 
-@maci-protocol/contracts=node_modules/@maci-protocol/contracts
-@excubiae/contracts=node_modules/@excubiae/contracts
-solady/=node_modules/solady/
+@maci-protocol/contracts/=lib/maci/packages/contracts
+@excubiae/contracts/=lib/excubiae/packages/contracts
