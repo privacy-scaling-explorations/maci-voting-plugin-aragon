@@ -9,6 +9,9 @@ import {DAOFactory} from "@aragon/osx/framework/dao/DAOFactory.sol";
 import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {hashHelpers, PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
+
+import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
+
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 
 import {MaciVoting} from "../src/MaciVoting.sol";
@@ -103,46 +106,42 @@ contract MaciVotingScript is Script {
     function getMaciVotingSetupParams()
         internal
         returns (
-            MaciVotingSetup.SetupMACIParams memory setupMaciParams,
+            IMaciVoting.InitializationParams memory params,
             GovernanceERC20.TokenSettings memory tokenSettings,
             GovernanceERC20.MintSettings memory mintSettings
         )
     {
         (, tokenSettings, mintSettings) = Utils.getGovernanceTokenAndMintSettings();
-        (
-            address maciAddress,
-            DomainObjs.PublicKey memory coordinatorPublicKey,
-            IMaciVoting.VotingSettings memory votingSettings,
-            address verifier,
-            address vkRegistry,
-            address policyFactory,
-            address checkerFactory,
-            address voiceCreditProxyFactory
-        ) = Utils.readMaciAddresses();
 
-        setupMaciParams = MaciVotingSetup.SetupMACIParams({
-            maci: maciAddress,
-            publicKey: coordinatorPublicKey,
-            votingSettings: votingSettings,
-            verifier: verifier,
-            vkRegistry: vkRegistry,
-            policyFactory: policyFactory,
-            checkerFactory: checkerFactory,
-            voiceCreditProxyFactory: voiceCreditProxyFactory
+        Utils.MaciEnvVariables memory maciEnvVariables = Utils.readMaciEnv();
+
+        params = IMaciVoting.InitializationParams({
+            dao: IDAO(address(0)), // Set in MaciVotingSetup.prepareInstallation
+            token: IVotesUpgradeable(address(0)), // Set in MaciVotingSetup.prepareInstallation
+            maci: maciEnvVariables.maci,
+            coordinatorPublicKey: maciEnvVariables.coordinatorPublicKey,
+            votingSettings: maciEnvVariables.votingSettings,
+            verifier: maciEnvVariables.verifier,
+            verifyingKeysRegistry: maciEnvVariables.verifyingKeysRegistry,
+            policyFactory: maciEnvVariables.policyFactory,
+            checkerFactory: maciEnvVariables.checkerFactory,
+            voiceCreditProxyFactory: maciEnvVariables.voiceCreditProxyFactory,
+            treeDepths: maciEnvVariables.treeDepths,
+            messageBatchSize: maciEnvVariables.messageBatchSize
         });
 
-        return (setupMaciParams, tokenSettings, mintSettings);
+        return (params, tokenSettings, mintSettings);
     }
 
     function getPluginSettings(
         PluginRepo pluginRepo
     ) public returns (DAOFactory.PluginSettings[] memory pluginSettings) {
         (
-            MaciVotingSetup.SetupMACIParams memory setupMaciParams,
+            IMaciVoting.InitializationParams memory params,
             GovernanceERC20.TokenSettings memory tokenSettings,
             GovernanceERC20.MintSettings memory mintSettings
         ) = getMaciVotingSetupParams();
-        bytes memory pluginSettingsData = abi.encode(setupMaciParams, tokenSettings, mintSettings);
+        bytes memory pluginSettingsData = abi.encode(params, tokenSettings, mintSettings);
 
         PluginRepo.Tag memory tag = PluginRepo.Tag(1, 1);
         pluginSettings = new DAOFactory.PluginSettings[](1);

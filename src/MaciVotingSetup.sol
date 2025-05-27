@@ -11,6 +11,8 @@ import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
+import {Params} from "@maci-protocol/contracts/contracts/utilities/Params.sol";
+
 import {IMaciVoting} from "./IMaciVoting.sol";
 import {MaciVoting} from "./MaciVoting.sol";
 import {GovernanceERC20} from "./ERC20Votes/GovernanceERC20.sol";
@@ -27,17 +29,6 @@ contract MaciVotingSetup is PluginSetup {
 
     /// @notice The address of the `GovernanceERC20` base contract.
     address public immutable governanceERC20Base;
-
-    struct SetupMACIParams {
-        address maci;
-        DomainObjs.PublicKey publicKey;
-        IMaciVoting.VotingSettings votingSettings;
-        address verifier;
-        address vkRegistry;
-        address policyFactory;
-        address checkerFactory;
-        address voiceCreditProxyFactory;
-    }
 
     /// @notice Constructs the `PluginSetup` by storing the `MaciVoting` implementation address.
     /// @dev The implementation address is used to deploy UUPS proxies referencing it and
@@ -62,27 +53,11 @@ contract MaciVotingSetup is PluginSetup {
     }
 
     function _deployPlugin(
-        address _dao,
-        address token,
-        SetupMACIParams memory setupMaciParams
+        IMaciVoting.InitializationParams memory _params
     ) internal returns (address plugin_) {
         plugin_ = createERC1967Proxy(
             address(maciVoting),
-            abi.encodeCall(
-                MaciVoting.initialize,
-                (
-                    IDAO(_dao),
-                    setupMaciParams.maci,
-                    setupMaciParams.publicKey,
-                    setupMaciParams.votingSettings,
-                    IVotesUpgradeable(token),
-                    setupMaciParams.verifier,
-                    setupMaciParams.vkRegistry,
-                    setupMaciParams.policyFactory,
-                    setupMaciParams.checkerFactory,
-                    setupMaciParams.voiceCreditProxyFactory
-                )
-            )
+            abi.encodeCall(MaciVoting.initialize, _params)
         );
     }
 
@@ -92,16 +67,24 @@ contract MaciVotingSetup is PluginSetup {
         bytes memory _data
     ) external returns (address plugin, PreparedSetupData memory preparedSetupData) {
         (
-            SetupMACIParams memory setupMaciParams,
+            IMaciVoting.InitializationParams memory _params,
             GovernanceERC20.TokenSettings memory tokenSettings,
             GovernanceERC20.MintSettings memory mintSettings
         ) = abi.decode(
                 _data,
-                (SetupMACIParams, GovernanceERC20.TokenSettings, GovernanceERC20.MintSettings)
+                (
+                    IMaciVoting.InitializationParams,
+                    GovernanceERC20.TokenSettings,
+                    GovernanceERC20.MintSettings
+                )
             );
 
         address token = _deployToken(_dao, tokenSettings, mintSettings);
-        plugin = _deployPlugin(_dao, token, setupMaciParams);
+
+        _params.dao = IDAO(_dao);
+        _params.token = IVotesUpgradeable(token);
+
+        plugin = _deployPlugin(_params);
 
         // return permissions for the DAO to setup
         preparedSetupData.helpers = new address[](2);

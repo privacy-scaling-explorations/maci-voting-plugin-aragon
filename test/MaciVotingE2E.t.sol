@@ -6,6 +6,7 @@ import {IDAO} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
+import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
 import {AragonE2E} from "./base/AragonE2E.sol";
 import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
@@ -21,15 +22,6 @@ contract MaciVotingE2E is AragonE2E {
     MaciVotingSetup internal setup;
     address internal unauthorised = account("unauthorised");
 
-    address internal maciAddress;
-    DomainObjs.PublicKey internal coordinatorPublicKey;
-    IMaciVoting.VotingSettings internal votingSettings;
-    address internal verifier;
-    address internal vkRegistry;
-    address internal policyFactory;
-    address internal checkerFactory;
-    address internal voiceCreditProxyFactory;
-
     function setUp() public virtual override {
         super.setUp();
 
@@ -42,21 +34,26 @@ contract MaciVotingE2E is AragonE2E {
         setup = new MaciVotingSetup(tokenToClone);
         address _plugin;
 
-        MaciVotingSetup.SetupMACIParams memory setupMaciParams = MaciVotingSetup.SetupMACIParams({
-            maci: maciAddress,
-            publicKey: coordinatorPublicKey,
-            votingSettings: votingSettings,
-            verifier: verifier,
-            vkRegistry: vkRegistry,
-            policyFactory: policyFactory,
-            checkerFactory: checkerFactory,
-            voiceCreditProxyFactory: voiceCreditProxyFactory
+        Utils.MaciEnvVariables memory maciEnvVariables = Utils.readMaciEnv();
+        IMaciVoting.InitializationParams memory params = IMaciVoting.InitializationParams({
+            dao: IDAO(address(0)), // Set in MaciVotingSetup.prepareInstallation
+            token: IVotesUpgradeable(address(0)), // Set in MaciVotingSetup.prepareInstallation
+            maci: maciEnvVariables.maci,
+            coordinatorPublicKey: maciEnvVariables.coordinatorPublicKey,
+            votingSettings: maciEnvVariables.votingSettings,
+            verifier: maciEnvVariables.verifier,
+            verifyingKeysRegistry: maciEnvVariables.verifyingKeysRegistry,
+            policyFactory: maciEnvVariables.policyFactory,
+            checkerFactory: maciEnvVariables.checkerFactory,
+            voiceCreditProxyFactory: maciEnvVariables.voiceCreditProxyFactory,
+            treeDepths: maciEnvVariables.treeDepths,
+            messageBatchSize: maciEnvVariables.messageBatchSize
         });
 
         (dao, repo, _plugin) = deployRepoAndDao(
-            "maciVotingTest",
+            string.concat("maci-voting-plugin-test-", vm.toString(block.timestamp)),
             address(setup),
-            abi.encode(setupMaciParams, tokenSettings, mintSettings)
+            abi.encode(params, tokenSettings, mintSettings)
         );
 
         plugin = MaciVoting(_plugin);
