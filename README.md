@@ -1,33 +1,29 @@
-Aragon OSx Plugin Foundry Template 🚀
-Welcome to the Solidity Foundry template for building plugins for Aragon OSx! This template is designed to help developers quickly set up and start creating powerful decentralized autonomous organization (DAO) plugins using Solidity and Foundry.
+MACI <> Aragon OSx Plugin 🚀
 
-Features ✨
-Pre-configured Foundry Environment: Set up with all necessary dependencies and configurations for Aragon OSx.
-Sample Contracts: Example plugins to demonstrate integration and usage.
-Comprehensive Testing: Pre-written tests to ensure your plugins work as expected.
 Prerequisites 📋
+
 Node.js
 Foundry
 Git
+
 Getting Started 🏁
 To get started, clone this repository and install the required dependencies:
 
 ```bash
 # Copy code
-git clone https://github.com/aragon/osx-plugin-template-foundry
-cd osx-plugin-template-foundry
+git clone git@github.com:privacy-scaling-explorations/maci-voting-plugin-aragon.git
+cd maci-voting-plugin-aragon
 foundryup # Install or update Foundry
-forge install # Install project dependencies
+pnpm install # Install project dependencies
 ```
 
 Usage 🛠
-Building a Plugin
-Create your plugin contract in the src directory. A simple plugin template is provided as MyPlugin.sol.
 
 Testing
 Run tests to ensure your plugins are working correctly:
 
 ```bash
+cp .env.example .env
 forge test
 ```
 

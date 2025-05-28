@@ -1,15 +1,21 @@
-forge-std/=lib/forge-std/src/
-@aragon/osx/=lib/osx/packages/contracts/src
-@ensdomains/ens-contracts/=lib/ens-contracts/
+forge-std/=node_modules/forge-std/src/
+@aragon/osx/=node_modules/@aragon/osx/packages/contracts/src
+@aragon/osx-commons-contracts=node_modules/@aragon/osx-commons-contracts/src
 
-@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
-@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
-ds-test/=lib/forge-std/lib/ds-test/src/
-ens-contracts/=lib/ens-contracts/contracts/
-erc4626-tests/=lib/openzeppelin-contracts-upgradeable/lib/erc4626-tests/
-openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/
-openzeppelin-contracts/=lib/openzeppelin-contracts/
+@ensdomains/ens-contracts/=node_modules/@ensdomains/ens-contracts
 
-@maci-protocol/contracts/=lib/maci/packages/contracts
-@excubiae/contracts/=lib/excubiae/packages/contracts
-solady/=lib/solady
+@openzeppelin/contracts-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/contracts/
+@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/
+
+
+ds-test/=node_modules/forge-std/lib/ds-test/src/
+
+
+ens-contracts/=node_modules/@ensdomains/ens-contracts
+erc4626-tests/=node_modules/@openzeppelin/contracts-upgradeable/lib/erc4626-tests/
+openzeppelin-contracts-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/
+openzeppelin-contracts/=node_modules/@openzeppelin/contracts/
+
+@maci-protocol/contracts/=node_modules/@maci-protocol/contracts
+@excubiae/contracts/=node_modules/@excubiae/contracts
+solady/=node_modules/solady

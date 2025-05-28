@@ -83,15 +83,14 @@ library Utils {
             receivers: new address[](3),
             amounts: new uint256[](3)
         });
-        // local tests
-        mintSettings.receivers[0] = address(0xB0b);
-        mintSettings.amounts[0] = 1 * 10 ** 18;
-        // Nico's address for UI tests
-        mintSettings.receivers[1] = address(0xE4721A80C6e56f4ebeed6acEE91b3ee715e7dD64);
-        mintSettings.amounts[1] = 5 * 10 ** 18;
-        // John's address for UI tests
-        mintSettings.receivers[2] = address(0x91AdDB0E8443C83bAf2aDa6B8157B38f814F0bcC);
-        mintSettings.amounts[2] = 5 * 10 ** 18;
+
+        address[] memory receivers = vm.envAddress("MINT_SETTINGS_RECEIVERS", ",");
+        uint256 amount = vm.envUint("MINT_SETTINGS_AMOUNT");
+        mintSettings.receivers = receivers;
+        mintSettings.amounts = new uint256[](receivers.length);
+        for (uint256 i = 0; i < receivers.length; i++) {
+            mintSettings.amounts[i] = amount;
+        }
 
         GovernanceERC20 tokenToClone = new GovernanceERC20(
             IDAO(address(0x0)),

@@ -1,0 +1,48 @@
+{
+  "name": "maci-voting-plugin",
+  "description": "",
+  "version": "1.0.0",
+  "author": {
+    "name": "PSE",
+    "url": "https://pse.dev"
+  },
+  "keywords": [
+    "blockchain",
+    "ethereum",
+    "forge",
+    "foundry",
+    "smart-contracts",
+    "solidity",
+    "aragon",
+    "osx",
+    "dao",
+    "maci"
+  ],
+  "scripts": {
+    "clean": "rm -rf cache out",
+    "build": "forge build",
+    "lint": "pnpm lint:sol && pnpm prettier:check",
+    "lint:sol": "solhint --max-warnings 0 \"{script,src,test}/**/*.sol\"",
+    "prettier:check": "prettier --check --plugin=prettier-plugin-solidity  \"**/*.{js,json,md,sol,ts,yml}\"",
+    "prettier:write": "prettier --check --plugin=prettier-plugin-solidity  \"**/*.{js,json,md,sol,ts,yml}\"",
+    "test": "forge test -vvv",
+    "test:coverage": "forge coverage",
+    "test:coverage:report": "forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage"
+  },
+  "devDependencies": {
+    "forge-std": "github:foundry-rs/forge-std#v1",
+    "prettier": "^2.8.8",
+    "prettier-plugin-solidity": "^1.1.3",
+    "solhint": "^3.6.2",
+    "solhint-plugin-prettier": "^0.0.5"
+  },
+  "dependencies": {
+    "@aragon/osx": "github:aragon/osx#16aab7bef9cd169600e0eb467e2d16ff2cee4611",
+    "@ensdomains/ens-contracts": "^1.4.0",
+    "@excubiae/contracts": "0.11.0",
+    "@maci-protocol/contracts": "0.0.0-ci.2cc4cdc",
+    "@openzeppelin/contracts": "^5.3.0",
+    "@openzeppelin/contracts-upgradeable": "github:OpenZeppelin/openzeppelin-contracts-upgradeable#12ad9ea7c8e8e78f6eba9ad71ad156645d3c5b4c",
+    "solady": "0.1.4"
+  }
+}
