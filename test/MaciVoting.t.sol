@@ -4,7 +4,6 @@ pragma solidity 0.8.28;
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
-import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {AragonTest} from "./base/AragonTest.sol";
@@ -25,16 +24,7 @@ abstract contract MaciVotingTest is AragonTest {
         forkId = vm.createFork(vm.envString("RPC_URL"));
         vm.selectFork(forkId);
 
-        (
-            address maciAddress,
-            DomainObjs.PublicKey memory coordinatorPublicKey,
-            IMaciVoting.VotingSettings memory votingSettings,
-            address verifier,
-            address vkRegistry,
-            address policyFactory,
-            address checkerFactory,
-            address voiceCreditProxyFactory
-        ) = Utils.readMaciAddresses();
+        Utils.MaciEnvVariables memory maciEnvVariables = Utils.readMaciEnv();
         (
             GovernanceERC20 tokenToClone,
             GovernanceERC20.TokenSettings memory tokenSettings,
@@ -43,18 +33,22 @@ abstract contract MaciVotingTest is AragonTest {
 
         setup = new MaciVotingSetup(tokenToClone);
 
-        MaciVotingSetup.SetupMACIParams memory setupMaciParams = MaciVotingSetup.SetupMACIParams({
-            maci: maciAddress,
-            publicKey: coordinatorPublicKey,
-            votingSettings: votingSettings,
-            verifier: verifier,
-            vkRegistry: vkRegistry,
-            policyFactory: policyFactory,
-            checkerFactory: checkerFactory,
-            voiceCreditProxyFactory: voiceCreditProxyFactory
+        IMaciVoting.InitializationParams memory params = IMaciVoting.InitializationParams({
+            dao: IDAO(address(0)), // Set in MaciVotingSetup.prepareInstallation
+            token: IVotesUpgradeable(address(0)), // Set in MaciVotingSetup.prepareInstallation
+            maci: maciEnvVariables.maci,
+            coordinatorPublicKey: maciEnvVariables.coordinatorPublicKey,
+            votingSettings: maciEnvVariables.votingSettings,
+            verifier: maciEnvVariables.verifier,
+            verifyingKeysRegistry: maciEnvVariables.verifyingKeysRegistry,
+            policyFactory: maciEnvVariables.policyFactory,
+            checkerFactory: maciEnvVariables.checkerFactory,
+            voiceCreditProxyFactory: maciEnvVariables.voiceCreditProxyFactory,
+            treeDepths: maciEnvVariables.treeDepths,
+            messageBatchSize: maciEnvVariables.messageBatchSize
         });
 
-        bytes memory setupData = abi.encode(setupMaciParams, tokenSettings, mintSettings);
+        bytes memory setupData = abi.encode(params, tokenSettings, mintSettings);
 
         (DAO _dao, address _plugin) = createMockDaoWithPlugin(setup, setupData);
 
@@ -79,29 +73,23 @@ contract MaciVotingInitializeTest is MaciVotingTest {
     }
 
     function test_reverts_if_reinitialized() public {
-        (
-            address maciAddress,
-            DomainObjs.PublicKey memory coordinatorPublicKey,
-            IMaciVoting.VotingSettings memory votingSettings,
-            address verifier,
-            address vkRegistry,
-            address policyFactory,
-            address checkerFactory,
-            address voiceCreditProxyFactory
-        ) = Utils.readMaciAddresses();
+        Utils.MaciEnvVariables memory maciEnvVariables = Utils.readMaciEnv();
+        IMaciVoting.InitializationParams memory params = IMaciVoting.InitializationParams({
+            dao: IDAO(address(0)), // Set in MaciVotingSetup.prepareInstallation
+            token: IVotesUpgradeable(address(0)), // Set in MaciVotingSetup.prepareInstallation
+            maci: maciEnvVariables.maci,
+            coordinatorPublicKey: maciEnvVariables.coordinatorPublicKey,
+            votingSettings: maciEnvVariables.votingSettings,
+            verifier: maciEnvVariables.verifier,
+            verifyingKeysRegistry: maciEnvVariables.verifyingKeysRegistry,
+            policyFactory: maciEnvVariables.policyFactory,
+            checkerFactory: maciEnvVariables.checkerFactory,
+            voiceCreditProxyFactory: maciEnvVariables.voiceCreditProxyFactory,
+            treeDepths: maciEnvVariables.treeDepths,
+            messageBatchSize: maciEnvVariables.messageBatchSize
+        });
         vm.expectRevert("Initializable: contract is already initialized");
-        plugin.initialize(
-            dao,
-            maciAddress,
-            coordinatorPublicKey,
-            votingSettings,
-            IVotesUpgradeable(address(0x0)),
-            verifier,
-            vkRegistry,
-            policyFactory,
-            checkerFactory,
-            voiceCreditProxyFactory
-        );
+        plugin.initialize(params);
     }
 }
 
@@ -121,8 +109,11 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
         address bobWallet = address(0xB0b);
         uint256 bobBalance = IVotesUpgradeable(voteToken).getVotes(bobWallet);
 
-        address aliceWallet = address(0xE4721A80C6e56f4ebeed6acEE91b3ee715e7dD64);
-        uint256 aliceBalance = IVotesUpgradeable(voteToken).getVotes(aliceWallet);
+        address nicoWallet = address(0xE4721A80C6e56f4ebeed6acEE91b3ee715e7dD64);
+        uint256 nicoBalance = IVotesUpgradeable(voteToken).getVotes(nicoWallet);
+
+        address johnWallet = address(0x91AdDB0E8443C83bAf2aDa6B8157B38f814F0bcC);
+        uint256 johnBalance = IVotesUpgradeable(voteToken).getVotes(johnWallet);
 
         uint256 totalVotingPower = plugin.totalVotingPower(block.number - 1);
 
@@ -131,10 +122,12 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
 
         assertEq(unknownBalance, 0);
         assertEq(mintSettings.receivers[0], bobWallet);
-        assertEq(mintSettings.receivers[1], aliceWallet);
-        assertEq(mintSettings.amounts[0], 1 * 10 ** 18);
-        assertEq(mintSettings.amounts[1], 5 * 10 ** 18);
-        assertEq(totalVotingPower, bobBalance + aliceBalance);
+        assertEq(mintSettings.receivers[1], nicoWallet);
+        assertEq(mintSettings.receivers[2], johnWallet);
+        assertEq(mintSettings.amounts[0], bobBalance);
+        assertEq(mintSettings.amounts[1], nicoBalance);
+        assertEq(mintSettings.amounts[2], johnBalance);
+        assertEq(totalVotingPower, bobBalance + nicoBalance + johnBalance);
     }
 
     function test_1_createProposal() public {

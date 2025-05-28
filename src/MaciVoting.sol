@@ -67,15 +67,11 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @notice The vk registry for the polls
     address public verifyingKeysRegistry;
 
-    /// @notice determines the capacity of the state tree
-    uint8 public constant STATE_TREE_DEPTH = 10;
-    // we only need 3 options -> 5 ** 1 = 5 capacity
-    uint8 public constant VOTE_OPTION_TREE_DEPTH = 2;
-    /// @notice determins the capacity of the int state tree
-    uint8 public constant TALLY_PROCESSING_STATE_TREE_DEPTH = 1;
-
     /// @notice The tree depths for the polls
     Params.TreeDepths treeDepths;
+
+    /// @notice The message batch size for the polls
+    uint8 public messageBatchSize;
 
     /// @notice Thrown if the proposal with same actions and metadata already exists.
     /// @param proposalId The id of the proposal.
@@ -155,42 +151,21 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     }
 
     /// @notice Initializes the plugin when build 1 is installed.
-    /// @param _dao The address of the DAO.
-    /// @param _maci The address of the maci contract.
-    /// @param _coordinatorPubKey The coordinator public key.
-    /// @param _votingSettings The voting settings.
-    /// @param _verifier The address of the verifier.
-    /// @param _verifyingKeysRegistry The address of the vk registry.
-    function initialize(
-        IDAO _dao,
-        address _maci,
-        DomainObjs.PublicKey calldata _coordinatorPubKey,
-        VotingSettings calldata _votingSettings,
-        IVotesUpgradeable _token,
-        address _verifier,
-        address _verifyingKeysRegistry,
-        address _policyFactory,
-        address _checkerFactory,
-        address _voiceCreditProxyFactory
-    ) external initializer {
-        __PluginUUPSUpgradeable_init(_dao);
+    /// @param _params The initialization parameters. Check `src/IMaciVoting`
+    function initialize(IMaciVoting.InitializationParams memory _params) external initializer {
+        __PluginUUPSUpgradeable_init(_params.dao);
+        votingToken = _params.token;
 
-        votingToken = _token;
-
-        maci = MACI(_maci);
-        coordinatorPubKey = _coordinatorPubKey;
-        votingSettings = _votingSettings;
-        verifier = _verifier;
-        verifyingKeysRegistry = _verifyingKeysRegistry;
-        policyFactory = IERC20VotesPolicyFactory(_policyFactory);
-        checkerFactory = IERC20VotesCheckerFactory(_checkerFactory);
-        voiceCreditProxyFactory = IInitialVoiceCreditsProxyFactory(_voiceCreditProxyFactory);
-
-        treeDepths = Params.TreeDepths({
-            tallyProcessingStateTreeDepth: TALLY_PROCESSING_STATE_TREE_DEPTH,
-            voteOptionTreeDepth: VOTE_OPTION_TREE_DEPTH,
-            stateTreeDepth: STATE_TREE_DEPTH
-        });
+        maci = MACI(_params.maci);
+        coordinatorPubKey = _params.coordinatorPublicKey;
+        votingSettings = _params.votingSettings;
+        verifier = _params.verifier;
+        verifyingKeysRegistry = _params.verifyingKeysRegistry;
+        policyFactory = IERC20VotesPolicyFactory(_params.policyFactory);
+        checkerFactory = IERC20VotesCheckerFactory(_params.checkerFactory);
+        voiceCreditProxyFactory = IInitialVoiceCreditsProxyFactory(_params.voiceCreditProxyFactory);
+        treeDepths = _params.treeDepths;
+        messageBatchSize = _params.messageBatchSize;
     }
 
     /// @notice Checks if this or the parent contract supports an interface by its ID.
@@ -268,16 +243,15 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             startDate: _startDate,
             endDate: _endDate,
             treeDepths: treeDepths,
-            messageBatchSize: 20,
+            messageBatchSize: messageBatchSize,
             coordinatorPublicKey: coordinatorPubKey,
             verifier: verifier,
             verifyingKeysRegistry: verifyingKeysRegistry,
-            mode: DomainObjs.Mode.NON_QV,
+            mode: votingSettings.mode,
             policy: policy,
             initialVoiceCreditProxy: initialVoiceCreditProxy,
             relayers: relayers,
-            // yes - no - abstain
-            voteOptions: 3
+            voteOptions: votingSettings.voteOptions
         });
 
         uint256 pollId = IMACI(maci).nextPollId();

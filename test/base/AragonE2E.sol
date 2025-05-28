@@ -22,31 +22,10 @@ contract AragonE2E is AragonTest {
     error UnknownNetwork();
 
     function setUp() public virtual {
-        bytes32 network = keccak256(abi.encodePacked(vm.envString("FORKING_NETWORK")));
-        address[] memory protocol;
+        daoFactory = DAOFactory(vm.envAddress("DAO_FACTORY"));
+        repoFactory = PluginRepoFactory(vm.envAddress("PLUGIN_REPO_FACTORY"));
 
-        if (network == keccak256(abi.encodePacked("mainnet")))
-            protocol = vm.envAddress("MAINNET", ",");
-        else if (network == keccak256(abi.encodePacked("goerli")))
-            protocol = vm.envAddress("GOERLI", ",");
-        else if (network == keccak256(abi.encodePacked("sepolia")))
-            protocol = vm.envAddress("SEPOLIA", ",");
-        else if (network == keccak256(abi.encodePacked("polygon")))
-            protocol = vm.envAddress("POLYGON", ",");
-        else if (network == keccak256(abi.encodePacked("mumbai")))
-            protocol = vm.envAddress("MUMBAI", ",");
-        else if (network == keccak256(abi.encodePacked("baseGoerli")))
-            protocol = vm.envAddress("BASE_GOERLI", ",");
-        else if (network == keccak256(abi.encodePacked("baseMainnet")))
-            protocol = vm.envAddress("BASE_MAINNET", ",");
-        else if (network == keccak256(abi.encodePacked("arbitrumSepolia")))
-            protocol = vm.envAddress("ARBITRUM_SEPOLIA", ",");
-        else revert UnknownNetwork();
-
-        daoFactory = DAOFactory(protocol[0]);
-        repoFactory = PluginRepoFactory(protocol[1]);
-
-        vm.createSelectFork(vm.rpcUrl("mainnet"), vm.envOr("FORK_BLOCK", _FORK_BLOCK));
+        vm.createSelectFork(vm.envString("RPC_URL"));
 
         console2.log("======================== E2E SETUP ======================");
         console2.log("Forking from: ", vm.envString("FORKING_NETWORK"));
