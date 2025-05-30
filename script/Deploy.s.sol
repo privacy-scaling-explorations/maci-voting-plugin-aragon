@@ -68,9 +68,10 @@ contract MaciVotingScript is Script {
         console2.log("Plugin Setup: ", address(pluginSetup));
         console2.log("Plugin Repo: ", address(pluginRepo));
         console2.log("Created DAO: ", address(createdDAO));
-        console2.log("Installed Plugins: ");
+        console2.log("Installed Plugins and voting tokens: ");
         for (uint256 i = 0; i < pluginAddress.length; i++) {
-            console2.log("- ", pluginAddress[i]);
+            console2.log("- Plugin: ", pluginAddress[i]);
+            console2.log("- Token:  ", address(MaciVoting(pluginAddress[i]).getVotingToken()));
         }
     }
 

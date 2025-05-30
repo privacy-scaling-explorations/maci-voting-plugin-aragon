@@ -58,7 +58,7 @@ contract MaciVotingE2E is AragonE2E {
         plugin = MaciVoting(_plugin);
     }
 
-    function test_e2e() public {
+    function test_e2e() public view {
         // test repo
         PluginRepo.Version memory version = repo.getLatestVersion(repo.latestRelease());
         assertEq(version.pluginSetup, address(setup));

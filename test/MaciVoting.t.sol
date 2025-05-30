@@ -68,7 +68,7 @@ contract MaciVotingInitializeTest is MaciVotingTest {
         super.setUp();
     }
 
-    function test_initialize() public {
+    function test_initialize() public view {
         assertEq(address(plugin.dao()), address(dao));
     }
 
@@ -103,31 +103,24 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
     function test_0_erc20votes_assigned() public {
         address voteToken = address(plugin.getVotingToken());
 
-        address unknownWallet = address(0x0A);
-        uint256 unknownBalance = IVotesUpgradeable(voteToken).getVotes(unknownWallet);
-
-        address bobWallet = address(0xB0b);
-        uint256 bobBalance = IVotesUpgradeable(voteToken).getVotes(bobWallet);
-
-        address nicoWallet = address(0xE4721A80C6e56f4ebeed6acEE91b3ee715e7dD64);
-        uint256 nicoBalance = IVotesUpgradeable(voteToken).getVotes(nicoWallet);
-
-        address johnWallet = address(0x91AdDB0E8443C83bAf2aDa6B8157B38f814F0bcC);
-        uint256 johnBalance = IVotesUpgradeable(voteToken).getVotes(johnWallet);
-
-        uint256 totalVotingPower = plugin.totalVotingPower(block.number - 1);
-
         (, , GovernanceERC20.MintSettings memory mintSettings) = Utils
             .getGovernanceTokenAndMintSettings();
 
+        uint256 totalTokens = 0;
+        uint256 totalVotingPower = plugin.totalVotingPower(block.number - 1);
+
+        address[] memory receivers = mintSettings.receivers;
+        for (uint256 i = 0; i < receivers.length; i++) {
+            uint256 balance = IVotesUpgradeable(voteToken).getVotes(receivers[i]);
+            assertEq(balance, mintSettings.amounts[i], "Balance mismatch for receiver");
+
+            totalTokens += balance;
+        }
+        assertEq(totalVotingPower, totalTokens);
+
+        address unknownWallet = address(0x0A);
+        uint256 unknownBalance = IVotesUpgradeable(voteToken).getVotes(unknownWallet);
         assertEq(unknownBalance, 0);
-        assertEq(mintSettings.receivers[0], bobWallet);
-        assertEq(mintSettings.receivers[1], nicoWallet);
-        assertEq(mintSettings.receivers[2], johnWallet);
-        assertEq(mintSettings.amounts[0], bobBalance);
-        assertEq(mintSettings.amounts[1], nicoBalance);
-        assertEq(mintSettings.amounts[2], johnBalance);
-        assertEq(totalVotingPower, bobBalance + nicoBalance + johnBalance);
     }
 
     function test_1_createProposal() public {
