@@ -40,7 +40,7 @@
     "@aragon/osx": "github:aragon/osx#16aab7bef9cd169600e0eb467e2d16ff2cee4611",
     "@ensdomains/ens-contracts": "^1.4.0",
     "@excubiae/contracts": "0.11.0",
-    "@maci-protocol/contracts": "0.0.0-ci.2cc4cdc",
+    "@maci-protocol/contracts": "0.0.0-ci.8198a70",
     "@openzeppelin/contracts": "^5.3.0",
     "@openzeppelin/contracts-upgradeable": "github:OpenZeppelin/openzeppelin-contracts-upgradeable#12ad9ea7c8e8e78f6eba9ad71ad156645d3c5b4c",
     "solady": "0.1.4"

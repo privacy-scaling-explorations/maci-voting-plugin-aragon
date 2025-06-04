@@ -419,7 +419,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             return false;
         }
         // Check if the minimum participation threshold has been reached based on final voting results.
-        if (proposal_.parameters.minVotingPower < tally_.totalSpent()) {
+        if (tally_.totalSpent() < proposal_.parameters.minVotingPower) {
             return false;
         }
         // Check if the support threshold has been reached based on final voting results.
@@ -457,7 +457,9 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
     /// @notice Executes a proposal after the voting period has ended and results are available.
     /// @param _proposalId The ID of the proposal.
-    function execute(uint256 _proposalId) public virtual auth(EXECUTE_PERMISSION_ID) {
+    function execute(
+        uint256 _proposalId
+    ) public virtual /* TODO: check if this is needed: auth(EXECUTE_PERMISSION_ID) */ {
         if (!_canExecute(_proposalId)) {
             revert ProposalExecutionForbidden(_proposalId);
         }
