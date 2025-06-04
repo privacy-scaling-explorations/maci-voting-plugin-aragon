@@ -419,7 +419,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             return false;
         }
         // Check if the minimum participation threshold has been reached based on final voting results.
-        if (proposal_.parameters.minVotingPower < tally_.totalSpent()) {
+        if (tally_.totalSpent() < proposal_.parameters.minVotingPower) {
             return false;
         }
         // Check if the support threshold has been reached based on final voting results.
