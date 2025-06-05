@@ -423,10 +423,11 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             return false;
         }
         // Check if the support threshold has been reached based on final voting results.
-        // no -> voteOption = 0
-        // yes -> voteOption = 1
-        (uint256 noValue, bool noFlag) = tally_.tallyResults(0);
-        (uint256 yesValue, bool yesFlag) = tally_.tallyResults(1);
+        // yes -> voteOption = 0
+        // no -> voteOption = 1
+
+        (uint256 yesValue, bool yesFlag) = tally_.tallyResults(0);
+        (uint256 noValue, bool noFlag) = tally_.tallyResults(1);
 
         if (!noFlag || !yesFlag) {
             return false;
