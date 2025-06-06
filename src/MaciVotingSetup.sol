@@ -103,7 +103,7 @@ contract MaciVotingSetup is PluginSetup {
         preparedSetupData.helpers[0] = address(new VotingPowerCondition(plugin));
         preparedSetupData.helpers[1] = token;
 
-        preparedSetupData.permissions = new PermissionLib.MultiTargetPermission[](5);
+        preparedSetupData.permissions = new PermissionLib.MultiTargetPermission[](2);
         preparedSetupData.permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: _dao,
@@ -116,34 +116,34 @@ contract MaciVotingSetup is PluginSetup {
         preparedSetupData.permissions[1] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.GrantWithCondition,
             where: plugin,
-            who: ANY_ADDR,
+            who: address(0x0),
             condition: preparedSetupData.helpers[0], // VotingPowerCondition
             permissionId: CREATE_PROPOSAL_PERMISSION_ID
         });
 
-        preparedSetupData.permissions[2] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            where: plugin,
-            who: _dao,
-            condition: PermissionLib.NO_CONDITION,
-            permissionId: SET_TARGET_CONFIG_PERMISSION_ID
-        });
+        // preparedSetupData.permissions[2] = PermissionLib.MultiTargetPermission({
+        //     operation: PermissionLib.Operation.Grant,
+        //     where: plugin,
+        //     who: _dao,
+        //     condition: PermissionLib.NO_CONDITION,
+        //     permissionId: SET_TARGET_CONFIG_PERMISSION_ID
+        // });
 
-        preparedSetupData.permissions[3] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            where: plugin,
-            who: _dao,
-            condition: PermissionLib.NO_CONDITION,
-            permissionId: DAO(payable(_dao)).SET_METADATA_PERMISSION_ID()
-        });
+        // preparedSetupData.permissions[3] = PermissionLib.MultiTargetPermission({
+        //     operation: PermissionLib.Operation.Grant,
+        //     where: plugin,
+        //     who: _dao,
+        //     condition: PermissionLib.NO_CONDITION,
+        //     permissionId: DAO(payable(_dao)).SET_METADATA_PERMISSION_ID()
+        // });
 
-        preparedSetupData.permissions[4] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            where: plugin,
-            who: ANY_ADDR,
-            condition: PermissionLib.NO_CONDITION,
-            permissionId: EXECUTE_PROPOSAL_PERMISSION_ID
-        });
+        // preparedSetupData.permissions[4] = PermissionLib.MultiTargetPermission({
+        //     operation: PermissionLib.Operation.Grant,
+        //     where: plugin,
+        //     who: ANY_ADDR,
+        //     condition: PermissionLib.NO_CONDITION,
+        //     permissionId: EXECUTE_PROPOSAL_PERMISSION_ID
+        // });
     }
 
     /// @inheritdoc IPluginSetup

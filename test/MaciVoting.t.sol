@@ -4,6 +4,9 @@ pragma solidity 0.8.28;
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
+import {MACI} from "@maci-protocol/contracts/contracts/MACI.sol";
+import {IMACI} from "@maci-protocol/contracts/contracts/interfaces/IMACI.sol";
+import {Tally} from "@maci-protocol/contracts/contracts/Tally.sol";
 
 import {MACI} from "@maci-protocol/contracts/contracts/MACI.sol";
 import {IMACI} from "@maci-protocol/contracts/contracts/interfaces/IMACI.sol";
@@ -216,12 +219,31 @@ contract MaciVotingProposalExecutionTest is MaciVotingTest {
 
         vm.warp(block.timestamp + 2 days);
 
-        MaciVoting.Proposal memory proposal_ = plugin.getProposal(proposalId);
-        MACI maci = plugin.getMaci();
-        IMACI.PollContracts memory pollContracts = maci.getPoll(proposal_.pollId);
-        address tally = pollContracts.tally;
-        mockTallyResults(tally, 1000, 500);
+        Utils.MaciEnvVariables memory maciEnvVariables = Utils.readMaciEnv();
+        address maci = maciEnvVariables.maci;
+        MaciVoting.Proposal memory proposal = plugin.getProposal(proposalId);
+        IMACI.PollContracts memory pollContracts = MACI(maci).getPoll(proposal.pollId);
 
+        vm.mockCall(
+            pollContracts.tally,
+            abi.encodeWithSelector(Tally.isTallied.selector),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            pollContracts.tally,
+            abi.encodeWithSelector(bytes4(keccak256("totalSpent()"))),
+            abi.encode(1000)
+        );
+        vm.mockCall(
+            pollContracts.tally,
+            abi.encodeWithSelector(bytes4(keccak256("tallyResults(uint256)")), 0),
+            abi.encode(900, true)
+        );
+        vm.mockCall(
+            pollContracts.tally,
+            abi.encodeWithSelector(bytes4(keccak256("tallyResults(uint256)")), 1),
+            abi.encode(100, true)
+        );
         plugin.execute(proposalId);
 
         vm.stopPrank();
