@@ -5,6 +5,9 @@ import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 
+import {MACI} from "@maci-protocol/contracts/contracts/MACI.sol";
+import {IMACI} from "@maci-protocol/contracts/contracts/interfaces/IMACI.sol";
+
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {AragonTest} from "./base/AragonTest.sol";
 import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
@@ -170,10 +173,30 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
     }
 }
 
-/*
 contract MaciVotingProposalExecutionTest is MaciVotingTest {
     function setUp() public override {
         super.setUp();
+    }
+
+    function mockTallyResults(address tallyContract, uint256 yesValue, uint256 noValue) public {
+        // Mock the tally results for testing purposes
+        vm.mockCall(
+            tallyContract,
+            abi.encodeWithSignature("tallyResults(uint256)", 0),
+            abi.encode(yesValue)
+        );
+        vm.mockCall(
+            tallyContract,
+            abi.encodeWithSignature("tallyResults(uint256)", 1),
+            abi.encode(noValue)
+        );
+        vm.mockCall(tallyContract, abi.encodeWithSignature("isTallied()"), abi.encode(true));
+
+        vm.mockCall(
+            tallyContract,
+            abi.encodeWithSignature("totalSpent()"),
+            abi.encode(yesValue + noValue) // or any value >= minVotingPower
+        );
     }
 
     function test_execute() public {
@@ -193,11 +216,14 @@ contract MaciVotingProposalExecutionTest is MaciVotingTest {
 
         vm.warp(block.timestamp + 2 days);
 
-        // TODO: prove and tally results
+        MaciVoting.Proposal memory proposal_ = plugin.getProposal(proposalId);
+        MACI maci = plugin.getMaci();
+        IMACI.PollContracts memory pollContracts = maci.getPoll(proposal_.pollId);
+        address tally = pollContracts.tally;
+        mockTallyResults(tally, 1000, 500);
 
         plugin.execute(proposalId);
 
         vm.stopPrank();
     }
 }
-*/

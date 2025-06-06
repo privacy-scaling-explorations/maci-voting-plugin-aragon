@@ -201,6 +201,10 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         return votingToken;
     }
 
+    function getMaci() public view returns (MACI) {
+        return maci;
+    }
+
     function minParticipation() public view virtual returns (uint32) {
         return votingSettings.minParticipation;
     }
