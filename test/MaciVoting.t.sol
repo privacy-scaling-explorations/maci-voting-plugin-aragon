@@ -7,9 +7,7 @@ import {IDAO} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
 import {MACI} from "@maci-protocol/contracts/contracts/MACI.sol";
 import {IMACI} from "@maci-protocol/contracts/contracts/interfaces/IMACI.sol";
 import {Tally} from "@maci-protocol/contracts/contracts/Tally.sol";
-
-import {MACI} from "@maci-protocol/contracts/contracts/MACI.sol";
-import {IMACI} from "@maci-protocol/contracts/contracts/interfaces/IMACI.sol";
+import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 
 import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {AragonTest} from "./base/AragonTest.sol";
@@ -66,6 +64,30 @@ abstract contract MaciVotingTest is AragonTest {
         voteToken.delegate(address(0xB0b));
 
         vm.roll(block.number + 1);
+    }
+
+    function mockTallyResults(uint256 proposalId, uint256 yesValue, uint256 noValue) public {
+        MaciVoting.Proposal memory proposal = plugin.getProposal(proposalId);
+        MACI maci = plugin.maci();
+        IMACI.PollContracts memory pollContracts = maci.getPoll(proposal.pollId);
+
+        // Mock the tally results for testing purposes
+        vm.mockCall(pollContracts.tally, abi.encodeWithSignature("isTallied()"), abi.encode(true));
+        vm.mockCall(
+            pollContracts.tally,
+            abi.encodeWithSignature("totalSpent()"),
+            abi.encode(yesValue + noValue)
+        );
+        vm.mockCall(
+            pollContracts.tally,
+            abi.encodeWithSignature("tallyResults(uint256)", 0),
+            abi.encode(yesValue, true)
+        );
+        vm.mockCall(
+            pollContracts.tally,
+            abi.encodeWithSignature("tallyResults(uint256)", 1),
+            abi.encode(noValue, true)
+        );
     }
 }
 
@@ -140,7 +162,7 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
             _actions: _actions,
             _allowFailureMap: 0,
             _startDate: uint64(block.timestamp + 5 minutes),
-            _endDate: uint64(block.timestamp + 1 days)
+            _endDate: uint64(block.timestamp + 15 minutes)
         });
         assertEq(plugin.proposalCount(), 1);
         assertEq(proposalId, 0);
@@ -169,7 +191,7 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
             _actions: _actions,
             _allowFailureMap: 0,
             _startDate: uint64(block.timestamp + 5 minutes),
-            _endDate: uint64(block.timestamp + 1 days)
+            _endDate: uint64(block.timestamp + 15 minutes)
         });
 
         vm.stopPrank();
@@ -179,27 +201,6 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
 contract MaciVotingProposalExecutionTest is MaciVotingTest {
     function setUp() public override {
         super.setUp();
-    }
-
-    function mockTallyResults(address tallyContract, uint256 yesValue, uint256 noValue) public {
-        // Mock the tally results for testing purposes
-        vm.mockCall(
-            tallyContract,
-            abi.encodeWithSignature("tallyResults(uint256)", 0),
-            abi.encode(yesValue)
-        );
-        vm.mockCall(
-            tallyContract,
-            abi.encodeWithSignature("tallyResults(uint256)", 1),
-            abi.encode(noValue)
-        );
-        vm.mockCall(tallyContract, abi.encodeWithSignature("isTallied()"), abi.encode(true));
-
-        vm.mockCall(
-            tallyContract,
-            abi.encodeWithSignature("totalSpent()"),
-            abi.encode(yesValue + noValue) // or any value >= minVotingPower
-        );
     }
 
     function test_execute() public {
@@ -214,37 +215,86 @@ contract MaciVotingProposalExecutionTest is MaciVotingTest {
             _actions: _actions,
             _allowFailureMap: 0,
             _startDate: uint64(block.timestamp + 5 minutes),
-            _endDate: uint64(block.timestamp + 1 days)
+            _endDate: uint64(block.timestamp + 15 minutes)
         });
 
-        vm.warp(block.timestamp + 2 days);
+        mockTallyResults(
+            proposalId,
+            900, // yes votes
+            100 // no votes
+        );
 
-        Utils.MaciEnvVariables memory maciEnvVariables = Utils.readMaciEnv();
-        address maci = maciEnvVariables.maci;
-        MaciVoting.Proposal memory proposal = plugin.getProposal(proposalId);
-        IMACI.PollContracts memory pollContracts = MACI(maci).getPoll(proposal.pollId);
-
-        vm.mockCall(
-            pollContracts.tally,
-            abi.encodeWithSelector(Tally.isTallied.selector),
-            abi.encode(true)
-        );
-        vm.mockCall(
-            pollContracts.tally,
-            abi.encodeWithSelector(bytes4(keccak256("totalSpent()"))),
-            abi.encode(1000)
-        );
-        vm.mockCall(
-            pollContracts.tally,
-            abi.encodeWithSelector(bytes4(keccak256("tallyResults(uint256)")), 0),
-            abi.encode(900, true)
-        );
-        vm.mockCall(
-            pollContracts.tally,
-            abi.encodeWithSelector(bytes4(keccak256("tallyResults(uint256)")), 1),
-            abi.encode(100, true)
-        );
         plugin.execute(proposalId);
+
+        vm.stopPrank();
+    }
+}
+
+contract MaciVotingChangeCoordinatorPublicKey is MaciVotingTest {
+    function setUp() public override {
+        super.setUp();
+    }
+
+    function test_change() public {
+        vm.startPrank(address(0xB0b));
+
+        (uint256 oldX, uint256 oldY) = plugin.coordinatorPublicKey();
+
+        DomainObjs.PublicKey memory newPublicKey = DomainObjs.PublicKey({x: oldX + 1, y: oldY + 1});
+
+        // Encode the function call
+        bytes memory callData = abi.encodeWithSignature(
+            "changeCoordinatorPublicKey((uint256,uint256))",
+            newPublicKey
+        );
+        // Create DAO action
+        IDAO.Action[] memory actions = new IDAO.Action[](1);
+        actions[0] = IDAO.Action({
+            to: address(plugin), // Target contract
+            value: 0,
+            data: callData
+        });
+        // Create proposal with this action
+        uint256 proposalId = plugin.createProposal({
+            _metadata: bytes("ipfs://change-coordinator-key"),
+            _actions: actions,
+            _allowFailureMap: 0,
+            _startDate: uint64(block.timestamp + 5 minutes),
+            _endDate: uint64(block.timestamp + 15 minutes)
+        });
+
+        mockTallyResults(
+            proposalId,
+            900, // yes votes
+            100 // no votes
+        );
+
+        plugin.execute(proposalId);
+
+        (uint256 updatedX, uint256 updatedY) = plugin.coordinatorPublicKey();
+        assertEq(updatedX, newPublicKey.x);
+        assertEq(updatedY, newPublicKey.y);
+
+        vm.stopPrank();
+    }
+
+    function test_revert_change_if_caller_is_not_dao() public {
+        vm.startPrank(address(0xB0b));
+
+        (uint256 oldX, uint256 oldY) = plugin.coordinatorPublicKey();
+
+        DomainObjs.PublicKey memory newPublicKey = DomainObjs.PublicKey({x: oldX + 1, y: oldY + 1});
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DaoUnauthorized.selector,
+                address(dao),
+                address(plugin),
+                address(0xB0b),
+                plugin.CHANGE_COORDINATOR_PUBLIC_KEY_PERMISSION_ID()
+            )
+        );
+        plugin.changeCoordinatorPublicKey(newPublicKey);
 
         vm.stopPrank();
     }
