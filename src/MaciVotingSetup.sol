@@ -1,20 +1,21 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.29;
 
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
-import {PermissionLib} from "@aragon/osx/core/permission/PermissionLib.sol";
-import {PluginSetup, IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
-import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
+import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";
+import {PluginSetup, IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginSetup.sol";
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
+import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
+import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
 
 import {Params} from "@maci-protocol/contracts/contracts/utilities/Params.sol";
 
 import {IMaciVoting} from "./IMaciVoting.sol";
 import {MaciVoting} from "./MaciVoting.sol";
-import {GovernanceERC20} from "./ERC20Votes/GovernanceERC20.sol";
 import {VotingPowerCondition} from "./ERC20Votes/VotingPowerCondition.sol";
 
 /// @title MaciVotingSetup
@@ -22,6 +23,7 @@ import {VotingPowerCondition} from "./ERC20Votes/VotingPowerCondition.sol";
 // @custom:oz-upgrades-unsafe-allow state-variable-immutable
 contract MaciVotingSetup is PluginSetup {
     using Clones for address;
+    using ProxyLib for address;
 
     /// @notice A special address encoding permissions that are valid for any address `who` or `where`.
     address private constant ANY_ADDR = address(type(uint160).max);
@@ -36,23 +38,34 @@ contract MaciVotingSetup is PluginSetup {
     bytes32 private constant EXECUTE_PROPOSAL_PERMISSION_ID =
         keccak256("EXECUTE_PROPOSAL_PERMISSION");
 
-    /// @notice The address of the `MaciVoting` implementation contract.
-    MaciVoting private immutable maciVoting;
-
     /// @notice The address of the `GovernanceERC20` base contract.
     address public immutable governanceERC20Base;
+
+    /// @notice Configuration settings for a token used within the governance system.
+    /// @param addr The token address. If set to `address(0)`, a new `GovernanceERC20` token is deployed.
+    ///     If the address implements `IVotes`, it will be used directly; otherwise,
+    ///     it is wrapped as `GovernanceWrappedERC20`.
+    /// @param name The name of the token.
+    /// @param symbol The symbol of the token.
+    struct TokenSettings {
+        address addr;
+        string name;
+        string symbol;
+    }
 
     /// @notice Constructs the `PluginSetup` by storing the `MaciVoting` implementation address.
     /// @dev The implementation address is used to deploy UUPS proxies referencing it and
     /// to verify the plugin on the respective block explorers.
-    constructor(GovernanceERC20 _governanceERC20Base) {
-        maciVoting = new MaciVoting();
+    constructor(
+        GovernanceERC20 _governanceERC20Base,
+        address _maciVoting
+    ) PluginSetup(_maciVoting) {
         governanceERC20Base = address(_governanceERC20Base);
     }
 
     function _deployToken(
         address _dao,
-        GovernanceERC20.TokenSettings memory tokenSettings,
+        TokenSettings memory tokenSettings,
         GovernanceERC20.MintSettings memory mintSettings
     ) internal returns (address token) {
         token = governanceERC20Base.clone();
@@ -67,10 +80,7 @@ contract MaciVotingSetup is PluginSetup {
     function _deployPlugin(
         IMaciVoting.InitializationParams memory _params
     ) internal returns (address plugin_) {
-        plugin_ = createERC1967Proxy(
-            address(maciVoting),
-            abi.encodeCall(MaciVoting.initialize, _params)
-        );
+        plugin_ = IMPLEMENTATION.deployUUPSProxy(abi.encodeCall(MaciVoting.initialize, _params));
     }
 
     /// @inheritdoc IPluginSetup
@@ -80,15 +90,11 @@ contract MaciVotingSetup is PluginSetup {
     ) external returns (address plugin, PreparedSetupData memory preparedSetupData) {
         (
             IMaciVoting.InitializationParams memory _params,
-            GovernanceERC20.TokenSettings memory tokenSettings,
+            TokenSettings memory tokenSettings,
             GovernanceERC20.MintSettings memory mintSettings
         ) = abi.decode(
                 _data,
-                (
-                    IMaciVoting.InitializationParams,
-                    GovernanceERC20.TokenSettings,
-                    GovernanceERC20.MintSettings
-                )
+                (IMaciVoting.InitializationParams, TokenSettings, GovernanceERC20.MintSettings)
             );
 
         address token = _deployToken(_dao, tokenSettings, mintSettings);
@@ -103,7 +109,7 @@ contract MaciVotingSetup is PluginSetup {
         preparedSetupData.helpers[0] = address(new VotingPowerCondition(plugin));
         preparedSetupData.helpers[1] = token;
 
-        preparedSetupData.permissions = new PermissionLib.MultiTargetPermission[](5);
+        preparedSetupData.permissions = new PermissionLib.MultiTargetPermission[](2);
         preparedSetupData.permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: _dao,
@@ -112,37 +118,12 @@ contract MaciVotingSetup is PluginSetup {
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
 
-        // TODO: Test which of these permissions are needed
         preparedSetupData.permissions[1] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.GrantWithCondition,
-            where: plugin,
-            who: ANY_ADDR,
-            condition: preparedSetupData.helpers[0], // VotingPowerCondition
-            permissionId: CREATE_PROPOSAL_PERMISSION_ID
-        });
-
-        preparedSetupData.permissions[2] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: plugin,
             who: _dao,
             condition: PermissionLib.NO_CONDITION,
-            permissionId: SET_TARGET_CONFIG_PERMISSION_ID
-        });
-
-        preparedSetupData.permissions[3] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            where: plugin,
-            who: _dao,
-            condition: PermissionLib.NO_CONDITION,
-            permissionId: DAO(payable(_dao)).SET_METADATA_PERMISSION_ID()
-        });
-
-        preparedSetupData.permissions[4] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            where: plugin,
-            who: ANY_ADDR,
-            condition: PermissionLib.NO_CONDITION,
-            permissionId: EXECUTE_PROPOSAL_PERMISSION_ID
+            permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
     }
 
@@ -160,10 +141,5 @@ contract MaciVotingSetup is PluginSetup {
             condition: PermissionLib.NO_CONDITION,
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
-    }
-
-    /// @inheritdoc IPluginSetup
-    function implementation() external view returns (address) {
-        return address(maciVoting);
     }
 }

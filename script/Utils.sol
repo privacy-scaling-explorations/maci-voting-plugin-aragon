@@ -1,14 +1,15 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.29;
 
 import "forge-std/Test.sol";
 import {Test} from "forge-std/Test.sol";
-import {IDAO} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 import {Params} from "@maci-protocol/contracts/contracts/utilities/Params.sol";
+import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
 
 import {IMaciVoting} from "../src/IMaciVoting.sol";
-import {GovernanceERC20} from "../src/ERC20Votes/GovernanceERC20.sol";
+import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
 
 library Utils {
     // the canonical hevm cheat‑code address
@@ -71,13 +72,14 @@ library Utils {
         public
         returns (
             GovernanceERC20,
-            GovernanceERC20.TokenSettings memory,
+            MaciVotingSetup.TokenSettings memory,
             GovernanceERC20.MintSettings memory
         )
     {
-        GovernanceERC20.TokenSettings memory tokenSettings = GovernanceERC20.TokenSettings({
-            name: "DAO Voting Token",
-            symbol: "DVT"
+        MaciVotingSetup.TokenSettings memory tokenSettings = MaciVotingSetup.TokenSettings({
+            addr: address(0), // If set to `address(0)`, a new `GovernanceERC20` token is deployed
+            name: "Test Token",
+            symbol: "TEST"
         });
         GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20.MintSettings({
             receivers: new address[](3),
