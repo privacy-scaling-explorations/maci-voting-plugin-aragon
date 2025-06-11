@@ -190,7 +190,7 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
         vm.expectRevert(
             abi.encodeWithSelector(MaciVoting.ProposalCreationForbidden.selector, address(0x0A))
         );
-        uint256 proposalId = plugin.createProposal({
+        plugin.createProposal({
             _metadata: bytes("ipfs://hello"),
             _actions: _actions,
             _startDate: uint64(block.timestamp + 5 minutes),
