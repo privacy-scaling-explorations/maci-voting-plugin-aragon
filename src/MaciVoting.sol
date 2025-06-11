@@ -36,8 +36,9 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     bytes4 internal constant MACI_VOTING_INTERFACE_ID =
         this.initialize.selector ^ this.getVotingToken.selector;
 
-    /// @notice The ID of the permission required to call the `execute` function.
-    bytes32 public constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
+    /// @notice The ID of the permission required to call the `changeCoordinatorPublicKey` function.
+    bytes32 public constant CHANGE_COORDINATOR_PUBLIC_KEY_PERMISSION_ID =
+        keccak256("CHANGE_COORDINATOR_PUBLIC_KEY_PERMISSION_ID");
 
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
     /// compatible contract referencing the token being used for voting.
@@ -48,7 +49,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
     /// @notice The coordinator public key.
     /// @dev We do not allow it to be passed per poll as we want the DAO to control this for now
-    DomainObjs.PublicKey public coordinatorPubKey;
+    DomainObjs.PublicKey public coordinatorPublicKey;
 
     /// @notice The voting settings.
     VotingSettings public votingSettings;
@@ -158,7 +159,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         votingToken = _params.token;
 
         maci = MACI(_params.maci);
-        coordinatorPubKey = _params.coordinatorPublicKey;
+        coordinatorPublicKey = _params.coordinatorPublicKey;
         votingSettings = _params.votingSettings;
         verifier = _params.verifier;
         verifyingKeysRegistry = _params.verifyingKeysRegistry;
@@ -245,7 +246,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             endDate: _endDate,
             treeDepths: treeDepths,
             messageBatchSize: messageBatchSize,
-            coordinatorPublicKey: coordinatorPubKey,
+            coordinatorPublicKey: coordinatorPublicKey,
             verifier: verifier,
             verifyingKeysRegistry: verifyingKeysRegistry,
             mode: votingSettings.mode,
@@ -465,9 +466,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
     /// @notice Executes a proposal after the voting period has ended and results are available.
     /// @param _proposalId The ID of the proposal.
-    function execute(
-        uint256 _proposalId
-    ) public virtual /* TODO: check if this is needed: auth(EXECUTE_PERMISSION_ID) */ {
+    function execute(uint256 _proposalId) public virtual {
         if (!_canExecute(_proposalId)) {
             revert ProposalExecutionForbidden(_proposalId);
         }
@@ -495,5 +494,13 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         );
 
         emit ProposalExecuted(_proposalId);
+    }
+
+    /// @notice Changes the coordinator public key. Only DAO (with an action) can call
+    /// @param _coordinatorPublicKey The new coordinator public key.
+    function changeCoordinatorPublicKey(
+        DomainObjs.PublicKey calldata _coordinatorPublicKey
+    ) public auth(CHANGE_COORDINATOR_PUBLIC_KEY_PERMISSION_ID) {
+        coordinatorPublicKey = _coordinatorPublicKey;
     }
 }

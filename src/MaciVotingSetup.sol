@@ -25,19 +25,6 @@ contract MaciVotingSetup is PluginSetup {
     using Clones for address;
     using ProxyLib for address;
 
-    /// @notice A special address encoding permissions that are valid for any address `who` or `where`.
-    address private constant ANY_ADDR = address(type(uint160).max);
-
-    bytes32 public constant CREATE_PROPOSAL_PERMISSION_ID = keccak256("CREATE_PROPOSAL_PERMISSION");
-
-    /// @notice The ID of the permission required to call the `setTargetConfig` function.
-    bytes32 private constant SET_TARGET_CONFIG_PERMISSION_ID =
-        keccak256("SET_TARGET_CONFIG_PERMISSION");
-
-    /// @notice The ID of the permission required to call the `execute` function.
-    bytes32 private constant EXECUTE_PROPOSAL_PERMISSION_ID =
-        keccak256("EXECUTE_PROPOSAL_PERMISSION");
-
     /// @notice The address of the `GovernanceERC20` base contract.
     address public immutable governanceERC20Base;
 
@@ -109,13 +96,21 @@ contract MaciVotingSetup is PluginSetup {
         preparedSetupData.helpers[0] = address(new VotingPowerCondition(plugin));
         preparedSetupData.helpers[1] = token;
 
-        preparedSetupData.permissions = new PermissionLib.MultiTargetPermission[](1);
+        preparedSetupData.permissions = new PermissionLib.MultiTargetPermission[](2);
         preparedSetupData.permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: _dao,
             who: plugin,
             condition: PermissionLib.NO_CONDITION,
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
+        });
+
+        preparedSetupData.permissions[1] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Grant,
+            where: plugin,
+            who: _dao,
+            condition: PermissionLib.NO_CONDITION,
+            permissionId: MaciVoting(plugin).CHANGE_COORDINATOR_PUBLIC_KEY_PERMISSION_ID()
         });
     }
 
@@ -124,7 +119,7 @@ contract MaciVotingSetup is PluginSetup {
         address _dao,
         SetupPayload calldata _payload
     ) external view returns (PermissionLib.MultiTargetPermission[] memory permissions) {
-        permissions = new PermissionLib.MultiTargetPermission[](1);
+        permissions = new PermissionLib.MultiTargetPermission[](2);
 
         permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Revoke,
@@ -132,6 +127,14 @@ contract MaciVotingSetup is PluginSetup {
             who: _payload.plugin,
             condition: PermissionLib.NO_CONDITION,
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
+        });
+
+        permissions[1] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Revoke,
+            where: _payload.plugin,
+            who: _dao,
+            condition: PermissionLib.NO_CONDITION,
+            permissionId: MaciVoting(_payload.plugin).CHANGE_COORDINATOR_PUBLIC_KEY_PERMISSION_ID()
         });
     }
 }
