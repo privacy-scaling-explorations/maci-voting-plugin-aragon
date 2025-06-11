@@ -2,20 +2,19 @@
 
 [profile.default]
 auto_detect_solc = false
-block_timestamp = 1_680_220_800 # March 31, 2023 at 00:00 GMT
 bytecode_hash = "none"
 cbor_metadata = false
-evm_version = "paris"           # See https://www.evmdiff.com/features?name=PUSH0&kind=opcode
+evm_version = "prague"           # See https://www.evmdiff.com/features?name=PUSH0&kind=opcode
 fuzz = { runs = 1_000 }
 gas_reports = ["*"]
-libs = ["lib"]
 optimizer = true
 optimizer_runs = 10_000
 out = "out"
 script = "script"
-solc = "0.8.28"
+solc = "0.8.29"
 src = "src"
 test = "test"
+ignored_warnings_from = ["node_modules"]
 
 [profile.ci]
 fuzz = { runs = 10_000 }

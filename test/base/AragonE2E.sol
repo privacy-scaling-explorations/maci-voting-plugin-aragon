@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.28;
+pragma solidity 0.8.29;
 
 import {Vm} from "forge-std/Test.sol";
 import {console2} from "forge-std/console2.sol";
 
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
-import {DAOFactory} from "@aragon/osx/framework/dao/DAOFactory.sol";
 import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
 
+import {IDAOFactory} from "../../src/IDAOFactory.sol";
 import {AragonTest} from "./AragonTest.sol";
 
 contract AragonE2E is AragonTest {
     bytes internal constant NON_EMPTY_BYTES = "0x1234";
     uint256 internal constant _FORK_BLOCK = 18_335_949; // fork block in .env takes precedence
 
-    DAOFactory internal daoFactory;
+    IDAOFactory internal daoFactory;
     PluginRepoFactory internal repoFactory;
 
     error UnknownNetwork();
 
     function setUp() public virtual {
-        daoFactory = DAOFactory(vm.envAddress("DAO_FACTORY"));
+        daoFactory = IDAOFactory(vm.envAddress("DAO_FACTORY"));
         repoFactory = PluginRepoFactory(vm.envAddress("PLUGIN_REPO_FACTORY"));
 
         vm.createSelectFork(vm.envString("RPC_URL"));
@@ -60,9 +60,9 @@ contract AragonE2E is AragonTest {
     function deployDao(
         PluginRepo repo,
         bytes memory installData
-    ) internal returns (DAO dao, address plugin) {
+    ) internal returns (address dao, address plugin) {
         // 1. dao settings
-        DAOFactory.DAOSettings memory daoSettings = DAOFactory.DAOSettings({
+        IDAOFactory.DAOSettings memory daoSettings = IDAOFactory.DAOSettings({
             trustedForwarder: address(0),
             daoURI: "https://mockDaoURL.com",
             subdomain: "mockdao888",
@@ -70,8 +70,8 @@ contract AragonE2E is AragonTest {
         });
 
         // 2. dao plugin settings
-        DAOFactory.PluginSettings[] memory installSettings = new DAOFactory.PluginSettings[](1);
-        installSettings[0] = DAOFactory.PluginSettings({
+        IDAOFactory.PluginSettings[] memory installSettings = new IDAOFactory.PluginSettings[](1);
+        installSettings[0] = IDAOFactory.PluginSettings({
             pluginSetupRef: PluginSetupRef({versionTag: getLatestTag(repo), pluginSetupRepo: repo}),
             data: installData
         });
@@ -101,7 +101,7 @@ contract AragonE2E is AragonTest {
         string memory _repoSubdomain,
         address _pluginSetup,
         bytes memory pluginInitData
-    ) internal returns (DAO dao, PluginRepo repo, address plugin) {
+    ) internal returns (address dao, PluginRepo repo, address plugin) {
         repo = deployRepo(_repoSubdomain, _pluginSetup);
         (dao, plugin) = deployDao(repo, pluginInitData);
     }

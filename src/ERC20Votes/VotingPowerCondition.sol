@@ -1,14 +1,14 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.8;
+pragma solidity ^0.8.29;
 
 import {MaciVoting} from "../MaciVoting.sol";
 
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
-import {IPermissionCondition} from "@aragon/osx/core/permission/IPermissionCondition.sol";
-import {PermissionCondition} from "@aragon/osx/core/permission/PermissionCondition.sol";
+import {IPermissionCondition} from "@aragon/osx-commons-contracts/src/permission/condition/IPermissionCondition.sol";
+import {PermissionCondition} from "@aragon/osx-commons-contracts/src/permission/condition/PermissionCondition.sol";
 
 /// @title VotingPowerCondition
 /// @author Aragon X - 2024

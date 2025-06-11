@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.28;
+pragma solidity 0.8.29;
 
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
-import {IDAO} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
-import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
+import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
 
 import {AragonE2E} from "./base/AragonE2E.sol";
 import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
 import {MaciVoting} from "../src/MaciVoting.sol";
 import {IMaciVoting} from "../src/IMaciVoting.sol";
-import {GovernanceERC20} from "../src/ERC20Votes/GovernanceERC20.sol";
 import {Utils} from "../script/Utils.sol";
 
 contract MaciVotingE2E is AragonE2E {
-    DAO internal dao;
+    address internal dao;
     MaciVoting internal plugin;
     PluginRepo internal repo;
     MaciVotingSetup internal setup;
@@ -26,11 +25,12 @@ contract MaciVotingE2E is AragonE2E {
 
         (
             GovernanceERC20 tokenToClone,
-            GovernanceERC20.TokenSettings memory tokenSettings,
+            MaciVotingSetup.TokenSettings memory tokenSettings,
             GovernanceERC20.MintSettings memory mintSettings
         ) = Utils.getGovernanceTokenAndMintSettings();
+        address maciVoting = address(new MaciVoting());
 
-        setup = new MaciVotingSetup(tokenToClone);
+        setup = new MaciVotingSetup(tokenToClone, maciVoting);
         address _plugin;
 
         Utils.MaciEnvVariables memory maciEnvVariables = Utils.readMaciEnv();
@@ -65,6 +65,9 @@ contract MaciVotingE2E is AragonE2E {
         assertEq(version.buildMetadata, NON_EMPTY_BYTES);
 
         // test dao
-        assertEq(keccak256(bytes(dao.daoURI())), keccak256(bytes("https://mockDaoURL.com")));
+        assertEq(
+            keccak256(bytes(DAO(payable(dao)).daoURI())),
+            keccak256(bytes("https://mockDaoURL.com"))
+        );
     }
 }

@@ -1,32 +1,33 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.28;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.29;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {Vm} from "forge-std/Vm.sol";
 
-import {IDAO} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
-import {DAOFactory} from "@aragon/osx/framework/dao/DAOFactory.sol";
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
+import {IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
 import {hashHelpers, PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
+import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
 
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
 import {MaciVoting} from "../src/MaciVoting.sol";
 import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
 import {IMaciVoting} from "../src/IMaciVoting.sol";
-import {GovernanceERC20} from "../src/ERC20Votes/GovernanceERC20.sol";
 import {Utils} from "../script/Utils.sol";
+import {IDAOFactory} from "../src/IDAOFactory.sol";
 
 contract MaciVotingScript is Script {
     address pluginRepoFactory;
-    DAOFactory daoFactory;
+    IDAOFactory daoFactory;
     string nameWithEntropy;
     address[] pluginAddress;
 
     function setUp() public {
         pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
-        daoFactory = DAOFactory(vm.envAddress("DAO_FACTORY"));
+        daoFactory = IDAOFactory(vm.envAddress("DAO_FACTORY"));
         nameWithEntropy = string.concat("maci-voting-plugin-", vm.toString(block.timestamp));
     }
 
@@ -41,14 +42,14 @@ contract MaciVotingScript is Script {
         PluginRepo pluginRepo = deployPluginRepo(address(pluginSetup));
 
         // 3. Defining the DAO Settings
-        DAOFactory.DAOSettings memory daoSettings = getDAOSettings();
+        IDAOFactory.DAOSettings memory daoSettings = getDAOSettings();
 
         // 4. Defining the plugin settings
-        DAOFactory.PluginSettings[] memory pluginSettings = getPluginSettings(pluginRepo);
+        IDAOFactory.PluginSettings[] memory pluginSettings = getPluginSettings(pluginRepo);
 
         // 5. Deploying the DAO
         vm.recordLogs();
-        address createdDAO = address(daoFactory.createDao(daoSettings, pluginSettings));
+        address createdDAO = daoFactory.createDao(daoSettings, pluginSettings);
 
         // 6. Getting the Plugin Address
         Vm.Log[] memory logEntries = vm.getRecordedLogs();
@@ -67,7 +68,7 @@ contract MaciVotingScript is Script {
         // 7. Logging the resulting addresses
         console2.log("Plugin Setup: ", address(pluginSetup));
         console2.log("Plugin Repo: ", address(pluginRepo));
-        console2.log("Created DAO: ", address(createdDAO));
+        console2.log("Created DAO: ", createdDAO);
         console2.log("Installed Plugins and voting tokens: ");
         for (uint256 i = 0; i < pluginAddress.length; i++) {
             console2.log("- Plugin: ", pluginAddress[i]);
@@ -83,8 +84,8 @@ contract MaciVotingScript is Script {
             "",
             GovernanceERC20.MintSettings({receivers: new address[](0), amounts: new uint256[](0)})
         );
-
-        MaciVotingSetup pluginSetup = new MaciVotingSetup(tokenToClone);
+        address maciVoting = address(new MaciVoting());
+        MaciVotingSetup pluginSetup = new MaciVotingSetup(tokenToClone, maciVoting);
         return pluginSetup;
     }
 
@@ -98,22 +99,20 @@ contract MaciVotingScript is Script {
         );
     }
 
-    function getDAOSettings() public view returns (DAOFactory.DAOSettings memory) {
-        return DAOFactory.DAOSettings(address(0), "", nameWithEntropy, "");
+    function getDAOSettings() public view returns (IDAOFactory.DAOSettings memory) {
+        return IDAOFactory.DAOSettings(address(0), "", nameWithEntropy, "");
     }
 
     function getMaciVotingSetupParams()
         internal
         returns (
             IMaciVoting.InitializationParams memory params,
-            GovernanceERC20.TokenSettings memory tokenSettings,
+            MaciVotingSetup.TokenSettings memory tokenSettings,
             GovernanceERC20.MintSettings memory mintSettings
         )
     {
         (, tokenSettings, mintSettings) = Utils.getGovernanceTokenAndMintSettings();
-
         Utils.MaciEnvVariables memory maciEnvVariables = Utils.readMaciEnv();
-
         params = IMaciVoting.InitializationParams({
             dao: IDAO(address(0)), // Set in MaciVotingSetup.prepareInstallation
             token: IVotesUpgradeable(address(0)), // Set in MaciVotingSetup.prepareInstallation
@@ -128,23 +127,20 @@ contract MaciVotingScript is Script {
             treeDepths: maciEnvVariables.treeDepths,
             messageBatchSize: maciEnvVariables.messageBatchSize
         });
-
-        return (params, tokenSettings, mintSettings);
     }
 
     function getPluginSettings(
         PluginRepo pluginRepo
-    ) public returns (DAOFactory.PluginSettings[] memory pluginSettings) {
+    ) public returns (IDAOFactory.PluginSettings[] memory pluginSettings) {
         (
             IMaciVoting.InitializationParams memory params,
-            GovernanceERC20.TokenSettings memory tokenSettings,
+            MaciVotingSetup.TokenSettings memory tokenSettings,
             GovernanceERC20.MintSettings memory mintSettings
         ) = getMaciVotingSetupParams();
         bytes memory pluginSettingsData = abi.encode(params, tokenSettings, mintSettings);
-
         PluginRepo.Tag memory tag = PluginRepo.Tag(1, 1);
-        pluginSettings = new DAOFactory.PluginSettings[](1);
-        pluginSettings[0] = DAOFactory.PluginSettings(
+        pluginSettings = new IDAOFactory.PluginSettings[](1);
+        pluginSettings[0] = IDAOFactory.PluginSettings(
             PluginSetupRef(tag, pluginRepo),
             pluginSettingsData
         );

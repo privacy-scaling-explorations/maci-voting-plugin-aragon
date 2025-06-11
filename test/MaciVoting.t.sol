@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.28;
+pragma solidity 0.8.29;
 
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
-import {IDAO} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {Action} from "@aragon/osx-commons-contracts/src/executors/IExecutor.sol";
+import {MACI} from "@maci-protocol/contracts/contracts/MACI.sol";
+import {IMACI} from "@maci-protocol/contracts/contracts/interfaces/IMACI.sol";
+import {Tally} from "@maci-protocol/contracts/contracts/Tally.sol";
+import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
 
-import {DaoUnauthorized} from "@aragon/osx/core/utils/auth.sol";
 import {AragonTest} from "./base/AragonTest.sol";
 import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
 import {MaciVoting} from "../src/MaciVoting.sol";
 import {IMaciVoting} from "../src/IMaciVoting.sol";
-import {GovernanceERC20} from "../src/ERC20Votes/GovernanceERC20.sol";
 import {Utils} from "../script/Utils.sol";
 
 abstract contract MaciVotingTest is AragonTest {
@@ -27,11 +30,12 @@ abstract contract MaciVotingTest is AragonTest {
         Utils.MaciEnvVariables memory maciEnvVariables = Utils.readMaciEnv();
         (
             GovernanceERC20 tokenToClone,
-            GovernanceERC20.TokenSettings memory tokenSettings,
+            MaciVotingSetup.TokenSettings memory tokenSettings,
             GovernanceERC20.MintSettings memory mintSettings
         ) = Utils.getGovernanceTokenAndMintSettings();
+        address maciVoting = address(new MaciVoting());
 
-        setup = new MaciVotingSetup(tokenToClone);
+        setup = new MaciVotingSetup(tokenToClone, maciVoting);
 
         IMaciVoting.InitializationParams memory params = IMaciVoting.InitializationParams({
             dao: IDAO(address(0)), // Set in MaciVotingSetup.prepareInstallation
@@ -126,18 +130,18 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
     function test_1_createProposal() public {
         vm.startPrank(address(0xB0b));
 
-        IDAO.Action[] memory _actions = new IDAO.Action[](1);
-        _actions[0] = IDAO.Action({to: address(0x0), value: 0, data: bytes("0x00")});
+        Action[] memory _actions = new Action[](1);
+        _actions[0] = Action({to: address(0x0), value: 0, data: bytes("0x00")});
+        bytes memory data = abi.encode(uint256(0), uint8(0), false);
+
         // Create a proposal
         uint256 proposalId = plugin.createProposal({
             _metadata: bytes("ipfs://hello"),
             _actions: _actions,
-            _allowFailureMap: 0,
             _startDate: uint64(block.timestamp + 5 minutes),
-            _endDate: uint64(block.timestamp + 1 days)
+            _endDate: uint64(block.timestamp + 1 days),
+            _data: data
         });
-        assertEq(plugin.proposalCount(), 1);
-        assertEq(proposalId, 0);
         assertEq(plugin.getProposal(proposalId).parameters.snapshotBlock, block.number - 1);
 
         vm.stopPrank();
@@ -151,8 +155,10 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
             return;
         }
 
-        IDAO.Action[] memory _actions = new IDAO.Action[](1);
-        _actions[0] = IDAO.Action({to: address(0x0), value: 0, data: bytes("0x00")});
+        Action[] memory _actions = new Action[](1);
+        _actions[0] = Action({to: address(0x0), value: 0, data: bytes("0x00")});
+
+        bytes memory data = abi.encode(uint256(0), uint8(0), false);
 
         // Create a proposal
         vm.expectRevert(
@@ -161,16 +167,15 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
         plugin.createProposal({
             _metadata: bytes("ipfs://hello"),
             _actions: _actions,
-            _allowFailureMap: 0,
             _startDate: uint64(block.timestamp + 5 minutes),
-            _endDate: uint64(block.timestamp + 1 days)
+            _endDate: uint64(block.timestamp + 1 days),
+            _data: data
         });
 
         vm.stopPrank();
     }
 }
 
-/*
 contract MaciVotingProposalExecutionTest is MaciVotingTest {
     function setUp() public override {
         super.setUp();
@@ -179,25 +184,48 @@ contract MaciVotingProposalExecutionTest is MaciVotingTest {
     function test_execute() public {
         vm.startPrank(address(0xB0b));
 
-        IDAO.Action[] memory _actions = new IDAO.Action[](1);
-        _actions[0] = IDAO.Action({to: address(0x0), value: 0, data: bytes("0x00")});
+        Action[] memory _actions = new Action[](1);
+        _actions[0] = Action({to: address(0x0), value: 0, data: bytes("0x00")});
+        bytes memory data = abi.encode(uint256(0), uint8(0), false);
 
         // Create a proposal
         uint256 proposalId = plugin.createProposal({
             _metadata: bytes("ipfs://hello"),
             _actions: _actions,
-            _allowFailureMap: 0,
             _startDate: uint64(block.timestamp + 5 minutes),
-            _endDate: uint64(block.timestamp + 1 days)
+            _endDate: uint64(block.timestamp + 1 days),
+            _data: data
         });
 
         vm.warp(block.timestamp + 2 days);
 
-        // TODO: prove and tally results
+        Utils.MaciEnvVariables memory maciEnvVariables = Utils.readMaciEnv();
+        address maci = maciEnvVariables.maci;
+        MaciVoting.Proposal memory proposal = plugin.getProposal(proposalId);
+        IMACI.PollContracts memory pollContracts = MACI(maci).getPoll(proposal.pollId);
 
+        vm.mockCall(
+            pollContracts.tally,
+            abi.encodeWithSelector(Tally.isTallied.selector),
+            abi.encode(true)
+        );
+        vm.mockCall(
+            pollContracts.tally,
+            abi.encodeWithSelector(bytes4(keccak256("totalSpent()"))),
+            abi.encode(1000)
+        );
+        vm.mockCall(
+            pollContracts.tally,
+            abi.encodeWithSelector(bytes4(keccak256("tallyResults(uint256)")), 0),
+            abi.encode(900, true)
+        );
+        vm.mockCall(
+            pollContracts.tally,
+            abi.encodeWithSelector(bytes4(keccak256("tallyResults(uint256)")), 1),
+            abi.encode(100, true)
+        );
         plugin.execute(proposalId);
 
         vm.stopPrank();
     }
 }
-*/

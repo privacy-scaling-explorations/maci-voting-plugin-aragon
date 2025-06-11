@@ -1,12 +1,13 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.29;
 
-import {PluginUUPSUpgradeable} from "@aragon/osx/core/plugin/PluginUUPSUpgradeable.sol";
-import {_applyRatioCeiled} from "@aragon/osx/plugins/utils/Ratio.sol";
-import {ProposalUpgradeable} from "@aragon/osx/core/plugin/proposal/ProposalUpgradeable.sol";
-import {IDAO} from "@aragon/osx/core/dao/IDAO.sol";
-import {IProposal} from "@aragon/osx/core/plugin/proposal/IProposal.sol";
+import {PluginUUPSUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/PluginUUPSUpgradeable.sol";
+import {_applyRatioCeiled} from "@aragon/osx-commons-contracts/src/utils/math/Ratio.sol";
+import {ProposalUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/ProposalUpgradeable.sol";
+import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IProposal} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/IProposal.sol";
+import {Action, IExecutor} from "@aragon/osx-commons-contracts/src/executors/IExecutor.sol";
 
 import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
@@ -130,7 +131,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         bool executed;
         ProposalParameters parameters;
         TallyResults tally;
-        IDAO.Action[] actions;
+        Action[] actions;
         uint256 allowFailureMap;
         uint256 pollId;
         address pollAddress;
@@ -298,7 +299,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @dev Helper function to avoid stack too deep in non via-ir compilation mode.
     function _emitProposalCreatedEvent(
         bytes calldata _metadata,
-        IDAO.Action[] calldata _actions,
+        Action[] calldata _actions,
         uint256 _allowFailureMap,
         uint256 proposalId,
         uint64 _startDate,
@@ -320,13 +321,17 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @param _actions The actions of the proposal.
     /// @param _startDate The start date of the proposal.
     /// @param _endDate The end date of the proposal.
+    /// @param _data The data of the proposal.
+    /// @return proposalId The ID of the proposal.
     function createProposal(
         bytes calldata _metadata,
-        IDAO.Action[] calldata _actions,
-        uint256 _allowFailureMap,
+        Action[] calldata _actions,
         uint64 _startDate,
-        uint64 _endDate
+        uint64 _endDate,
+        bytes calldata _data
     ) public returns (uint256 proposalId) {
+        (uint256 _allowFailureMap, , ) = abi.decode(_data, (uint256, uint8, bool));
+
         // Check that either `_msgSender` owns enough tokens or has enough voting power from being a delegatee.
         {
             uint256 minProposerVotingPower_ = minProposerVotingPower();
@@ -354,40 +359,42 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         }
 
         (_startDate, _endDate) = _validateProposalDates(_startDate, _endDate);
-        proposalId = _createProposalId();
+        proposalId = _createProposalId(keccak256(abi.encode(_actions, _metadata)));
         if (_proposalExists(proposalId)) {
             revert ProposalAlreadyExists(proposalId);
         }
 
-        // Store proposal related information
-        Proposal storage proposal_ = proposals[proposalId];
-        proposal_.active = true;
-        proposal_.parameters.startDate = _startDate;
-        proposal_.parameters.endDate = _endDate;
-        proposal_.parameters.snapshotBlock = snapshotBlock;
-        proposal_.parameters.minVotingPower = _applyRatioCeiled(
-            totalVotingPower_,
-            minParticipation()
-        );
+        {
+            // Store proposal related information
+            Proposal storage proposal_ = proposals[proposalId];
+            proposal_.active = true;
+            proposal_.parameters.startDate = _startDate;
+            proposal_.parameters.endDate = _endDate;
+            proposal_.parameters.snapshotBlock = snapshotBlock;
+            proposal_.parameters.minVotingPower = _applyRatioCeiled(
+                totalVotingPower_,
+                minParticipation()
+            );
 
-        (uint256 pollId, IMACI.PollContracts memory pollContracts) = deployPoll(
-            _startDate,
-            _endDate,
-            proposal_.parameters.minVotingPower
-        );
+            (uint256 pollId, IMACI.PollContracts memory pollContracts) = deployPoll(
+                _startDate,
+                _endDate,
+                proposal_.parameters.minVotingPower
+            );
 
-        proposal_.pollId = pollId;
-        proposal_.pollAddress = pollContracts.poll;
+            proposal_.pollId = pollId;
+            proposal_.pollAddress = pollContracts.poll;
 
-        // Reduce costs
-        if (_allowFailureMap != 0) {
-            proposal_.allowFailureMap = _allowFailureMap;
-        }
+            // Reduce costs
+            if (_allowFailureMap != 0) {
+                proposal_.allowFailureMap = _allowFailureMap;
+            }
 
-        for (uint256 i; i < _actions.length; ) {
-            proposal_.actions.push(_actions[i]);
-            unchecked {
-                ++i;
+            for (uint256 i; i < _actions.length; ) {
+                proposal_.actions.push(_actions[i]);
+                unchecked {
+                    ++i;
+                }
             }
         }
 
@@ -474,12 +481,18 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
         (uint256 noValue, ) = tally_.tallyResults(0);
         (uint256 yesValue, ) = tally_.tallyResults(1);
-
         // Save the results in the proposal struct for faster access
         proposal_.tally.yes = yesValue;
         proposal_.tally.no = noValue;
 
-        _executeProposal(dao(), _proposalId, proposal_.actions, proposal_.allowFailureMap);
+        TargetConfig memory targetConfig = getTargetConfig();
+        _execute(
+            targetConfig.target,
+            bytes32(_proposalId),
+            proposal_.actions,
+            proposal_.allowFailureMap,
+            targetConfig.operation
+        );
 
         emit ProposalExecuted(_proposalId);
     }
