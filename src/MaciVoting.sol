@@ -94,6 +94,14 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @param actual The actual time.
     error DateOutOfBounds(uint64 limit, uint64 actual);
 
+    /// @notice Emitted when the coordinator public key is changed.
+    /// @param oldCoordinatorPublicKey The previous coordinator public key.
+    /// @param newCoordinatorPublicKey The new coordinator public key.
+    event CoordinatorKeyChanged(
+        DomainObjs.PublicKey oldCoordinatorPublicKey,
+        DomainObjs.PublicKey newCoordinatorPublicKey
+    );
+
     /// @notice A container for the proposal parameters at the time of proposal creation.
     /// @param startDate The start date of the proposal vote.
     /// @param endDate The end date of the proposal vote.
@@ -501,6 +509,9 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     function changeCoordinatorPublicKey(
         DomainObjs.PublicKey calldata _coordinatorPublicKey
     ) public auth(CHANGE_COORDINATOR_PUBLIC_KEY_PERMISSION_ID) {
+        DomainObjs.PublicKey memory oldCoordinatorPublicKey = coordinatorPublicKey;
         coordinatorPublicKey = _coordinatorPublicKey;
+
+        emit CoordinatorKeyChanged(oldCoordinatorPublicKey, _coordinatorPublicKey);
     }
 }
