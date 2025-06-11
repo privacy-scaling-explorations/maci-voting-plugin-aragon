@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
+/* solhint-disable no-console */
+
 import {Script, console2} from "forge-std/Script.sol";
 import {Vm} from "forge-std/Vm.sol";
 
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
-import {IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/IPluginSetup.sol";
-import {hashHelpers, PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
+import {PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
 import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
 
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
@@ -20,10 +21,10 @@ import {Utils} from "../script/Utils.sol";
 import {IDAOFactory} from "../src/IDAOFactory.sol";
 
 contract MaciVotingScript is Script {
-    address pluginRepoFactory;
-    IDAOFactory daoFactory;
-    string nameWithEntropy;
-    address[] pluginAddress;
+    address public pluginRepoFactory;
+    IDAOFactory public daoFactory;
+    string public nameWithEntropy;
+    address[] public pluginAddress;
 
     function setUp() public {
         pluginRepoFactory = vm.envAddress("PLUGIN_REPO_FACTORY");
@@ -55,10 +56,7 @@ contract MaciVotingScript is Script {
         Vm.Log[] memory logEntries = vm.getRecordedLogs();
 
         for (uint256 i = 0; i < logEntries.length; i++) {
-            if (
-                logEntries[i].topics[0] ==
-                keccak256("InstallationApplied(address,address,bytes32,bytes32)")
-            ) {
+            if (logEntries[i].topics[0] == keccak256("InstallationApplied(address,address,bytes32,bytes32)")) {
                 pluginAddress.push(address(uint160(uint256(logEntries[i].topics[2]))));
             }
         }
@@ -140,9 +138,6 @@ contract MaciVotingScript is Script {
         bytes memory pluginSettingsData = abi.encode(params, tokenSettings, mintSettings);
         PluginRepo.Tag memory tag = PluginRepo.Tag(1, 1);
         pluginSettings = new IDAOFactory.PluginSettings[](1);
-        pluginSettings[0] = IDAOFactory.PluginSettings(
-            PluginSetupRef(tag, pluginRepo),
-            pluginSettingsData
-        );
+        pluginSettings[0] = IDAOFactory.PluginSettings(PluginSetupRef(tag, pluginRepo), pluginSettingsData);
     }
 }

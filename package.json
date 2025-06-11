@@ -23,18 +23,19 @@
     "build": "forge build",
     "lint": "pnpm lint:sol && pnpm prettier:check",
     "lint:sol": "solhint --max-warnings 0 \"{script,src,test}/**/*.sol\"",
-    "prettier:check": "prettier --check --plugin=prettier-plugin-solidity  \"**/*.{js,json,md,sol,ts,yml}\"",
-    "prettier:write": "prettier --check --plugin=prettier-plugin-solidity  \"**/*.{js,json,md,sol,ts,yml}\"",
+    "prettier:check": "prettier --check --plugin=prettier-plugin-solidity \"**/*.{js,json,md,sol,ts,yml}\"",
+    "prettier:write": "prettier --write --plugin=prettier-plugin-solidity \"**/*.{js,json,md,sol,ts,yml}\"",
     "test": "forge test -vvv",
     "test:coverage": "forge coverage",
-    "test:coverage:report": "forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage"
+    "test:coverage:report": "forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage",
+    "prepare": "husky"
   },
   "devDependencies": {
     "forge-std": "github:foundry-rs/forge-std#v1.9.7",
-    "prettier": "^2.8.8",
-    "prettier-plugin-solidity": "^1.1.3",
-    "solhint": "^3.6.2",
-    "solhint-plugin-prettier": "^0.0.5"
+    "husky": "^9.1.7",
+    "prettier": "^3.5.3",
+    "prettier-plugin-solidity": "^2.0.0",
+    "solhint": "^5.1.0"
   },
   "dependencies": {
     "@aragon/osx": "1.4.0",
@@ -45,6 +46,6 @@
     "@maci-protocol/contracts": "0.0.0-ci.8198a70",
     "@openzeppelin/contracts": "4.9.6",
     "@openzeppelin/contracts-upgradeable": "4.9.6",
-    "solady": "0.1.4"
+    "solady": "^0.1.19"
   }
 }

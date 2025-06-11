@@ -4,10 +4,10 @@ pragma solidity ^0.8.29;
 
 import {PluginUUPSUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/PluginUUPSUpgradeable.sol";
 import {_applyRatioCeiled} from "@aragon/osx-commons-contracts/src/utils/math/Ratio.sol";
-import {ProposalUpgradeable} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/ProposalUpgradeable.sol";
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
-import {IProposal} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/IProposal.sol";
-import {Action, IExecutor} from "@aragon/osx-commons-contracts/src/executors/IExecutor.sol";
+import {
+    ProposalUpgradeable
+} from "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/ProposalUpgradeable.sol";
+import {Action} from "@aragon/osx-commons-contracts/src/executors/IExecutor.sol";
 
 import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
@@ -33,14 +33,13 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     using SafeCastUpgradeable for uint256;
 
     /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
-    bytes4 internal constant MACI_VOTING_INTERFACE_ID =
-        this.initialize.selector ^ this.getVotingToken.selector;
+    bytes4 internal constant MACI_VOTING_INTERFACE_ID = this.initialize.selector ^ this.getVotingToken.selector;
 
     /// @notice The ID of the permission required to call the `changeCoordinatorPublicKey` function.
     bytes32 public constant CHANGE_COORDINATOR_PUBLIC_KEY_PERMISSION_ID =
         keccak256("CHANGE_COORDINATOR_PUBLIC_KEY_PERMISSION_ID");
 
-    /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
+    /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes)
     /// compatible contract referencing the token being used for voting.
     IVotesUpgradeable private votingToken;
 
@@ -70,7 +69,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     address public verifyingKeysRegistry;
 
     /// @notice The tree depths for the polls
-    Params.TreeDepths treeDepths;
+    Params.TreeDepths public treeDepths;
 
     /// @notice The message batch size for the polls
     uint8 public messageBatchSize;
@@ -129,7 +128,9 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @param executed Whether the proposal is executed or not.
     /// @param parameters The proposal parameters at the time of the proposal creation.
     /// @param actions The actions to be executed when the proposal passes.
-    /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
+    /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert.
+    /// If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value
+    /// of 0 requires every action to not revert.
     /// @param targetConfig Configuration for the execution target, specifying the target address and operation type
     ///     (either `Call` or `DelegateCall`). Defined by `TargetConfig` in the `IPlugin` interface,
     ///     part of the `osx-commons-contracts` package, added in build 3.
@@ -192,6 +193,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     }
 
     function upgradeTo(address newAddress) public pure override {
+        /* solhint-disable-next-line gas-custom-errors */
         require(newAddress != address(0), "Not allowed");
     }
 
@@ -235,18 +237,10 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         address[] memory relayers = new address[](1);
         relayers[0] = address(0);
 
-        address checker = checkerFactory.deploy(
-            address(votingToken),
-            block.number,
-            _minVotingPower
-        );
+        address checker = checkerFactory.deploy(address(votingToken), block.number, _minVotingPower);
         address policy = policyFactory.deploy(checker);
 
-        address initialVoiceCreditProxy = voiceCreditProxyFactory.deploy(
-            block.number,
-            address(votingToken),
-            10e16
-        );
+        address initialVoiceCreditProxy = voiceCreditProxyFactory.deploy(block.number, address(votingToken), 10e16);
 
         // Arguments to deploy a poll
         IMACI.DeployPollArgs memory deployPollArgs = IMACI.DeployPollArgs({
@@ -272,7 +266,8 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     }
 
     /// @notice Validates and returns the proposal vote dates.
-    /// @param _start The start date of the proposal vote. If 0, the current timestamp is used and the vote starts immediately.
+    /// @param _start The start date of the proposal vote. If 0, the current timestamp is used
+    /// and the vote starts immediately.
     /// @param _end The end date of the proposal vote. If 0, `_start + minDuration` is used.
     /// @return startDate The validated start date of the proposal vote.
     /// @return endDate The validated end date of the proposal vote.
@@ -292,7 +287,10 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             }
         }
 
-        uint64 earliestEndDate = startDate + votingSettings.minDuration; // Since `minDuration` is limited to 1 year, `startDate + minDuration` can only overflow if the `startDate` is after `type(uint64).max - minDuration`. In this case, the proposal creation will revert and another date can be picked.
+        // Since `minDuration` is limited to 1 year, `startDate + minDuration` can only overflow if the
+        // `startDate` is after `type(uint64).max - minDuration`. In this case, the proposal creation
+        // will revert and another date can be picked.
+        uint64 earliestEndDate = startDate + votingSettings.minDuration;
 
         if (_end == 0) {
             endDate = earliestEndDate;
@@ -314,15 +312,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         uint64 _startDate,
         uint64 _endDate
     ) private {
-        emit ProposalCreated(
-            proposalId,
-            _msgSender(),
-            _startDate,
-            _endDate,
-            _metadata,
-            _actions,
-            _allowFailureMap
-        );
+        emit ProposalCreated(proposalId, _msgSender(), _startDate, _endDate, _metadata, _actions, _allowFailureMap);
     }
 
     /// @notice Creates a proposal.
@@ -346,11 +336,11 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             uint256 minProposerVotingPower_ = minProposerVotingPower();
 
             if (minProposerVotingPower_ != 0) {
-                // Because of the checks in `MaciVotingSetup`, we can assume that `votingToken` is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
+                // Because of the checks in `MaciVotingSetup`, we can assume that `votingToken`
+                // is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
                 if (
                     votingToken.getVotes(_msgSender()) < minProposerVotingPower_ &&
-                    IVotesUpgradeable(address(votingToken)).getVotes(_msgSender()) <
-                    minProposerVotingPower_
+                    IVotesUpgradeable(address(votingToken)).getVotes(_msgSender()) < minProposerVotingPower_
                 ) {
                     revert ProposalCreationForbidden(_msgSender());
                 }
@@ -359,7 +349,9 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
         uint256 snapshotBlock;
         unchecked {
-            snapshotBlock = block.number - 1; // The snapshot block must be mined already to protect the transaction against backrunning transactions causing census changes.
+            // The snapshot block must be mined already to protect the transaction against
+            // backrunning transactions causing census changes.
+            snapshotBlock = block.number - 1;
         }
         uint256 totalVotingPower_ = totalVotingPower(snapshotBlock);
 
@@ -380,10 +372,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             proposal_.parameters.startDate = _startDate;
             proposal_.parameters.endDate = _endDate;
             proposal_.parameters.snapshotBlock = snapshotBlock;
-            proposal_.parameters.minVotingPower = _applyRatioCeiled(
-                totalVotingPower_,
-                minParticipation()
-            );
+            proposal_.parameters.minVotingPower = _applyRatioCeiled(totalVotingPower_, minParticipation());
 
             (uint256 pollId, IMACI.PollContracts memory pollContracts) = deployPoll(
                 _startDate,
@@ -407,14 +396,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             }
         }
 
-        _emitProposalCreatedEvent(
-            _metadata,
-            _actions,
-            _allowFailureMap,
-            proposalId,
-            _startDate,
-            _endDate
-        );
+        _emitProposalCreatedEvent(_metadata, _actions, _allowFailureMap, proposalId, _startDate, _endDate);
     }
 
     /// @notice Internal function to check if a proposal can be executed. It assumes the queried proposal exists.

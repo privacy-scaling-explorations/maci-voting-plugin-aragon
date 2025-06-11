@@ -4,11 +4,12 @@
     "code-complexity": ["error", 8],
     "compiler-version": ["error", ">=0.8.17"],
     "func-name-mixedcase": "off",
-    "func-visibility": ["error", {"ignoreConstructors": true}],
+    "func-visibility": ["error", { "ignoreConstructors": true }],
     "max-line-length": ["error", 120],
     "named-parameters-mapping": "off",
-    "no-console": "off",
     "not-rely-on-time": "off",
-    "one-contract-per-file": "off"
+    "one-contract-per-file": "off",
+    "immutable-vars-naming": "off",
+    "import-path-check": "off"
   }
 }

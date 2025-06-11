@@ -10,9 +10,5 @@ interface IInitialVoiceCreditsProxyFactory {
     /// @param _snapshotBlock The snapshot block number.
     /// @param _token The token to deploy the proxy for.
     /// @param _factor The factor to scale down.
-    function deploy(
-        uint256 _snapshotBlock,
-        address _token,
-        uint256 _factor
-    ) external returns (address);
+    function deploy(uint256 _snapshotBlock, address _token, uint256 _factor) external returns (address);
 }
