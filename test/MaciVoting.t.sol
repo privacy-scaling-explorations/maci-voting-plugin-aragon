@@ -9,7 +9,6 @@ import {Action} from "@aragon/osx-commons-contracts/src/executors/IExecutor.sol"
 import {MACI} from "@maci-protocol/contracts/contracts/MACI.sol";
 import {IMACI} from "@maci-protocol/contracts/contracts/interfaces/IMACI.sol";
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
-import {Tally} from "@maci-protocol/contracts/contracts/Tally.sol";
 import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
 
 import {AragonTest} from "./base/AragonTest.sol";
@@ -75,11 +74,7 @@ abstract contract MaciVotingTest is AragonTest {
 
         // Mock the tally results for testing purposes
         vm.mockCall(pollContracts.tally, abi.encodeWithSignature("isTallied()"), abi.encode(true));
-        vm.mockCall(
-            pollContracts.tally,
-            abi.encodeWithSignature("totalSpent()"),
-            abi.encode(yesValue + noValue)
-        );
+        vm.mockCall(pollContracts.tally, abi.encodeWithSignature("totalSpent()"), abi.encode(yesValue + noValue));
         vm.mockCall(
             pollContracts.tally,
             abi.encodeWithSignature("tallyResults(uint256)", 0),
@@ -133,8 +128,7 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
     function test_0_erc20votes_assigned() public {
         address voteToken = address(plugin.getVotingToken());
 
-        (, , GovernanceERC20.MintSettings memory mintSettings) = Utils
-            .getGovernanceTokenAndMintSettings();
+        (, , GovernanceERC20.MintSettings memory mintSettings) = Utils.getGovernanceTokenAndMintSettings();
 
         uint256 totalTokens = 0;
         uint256 totalVotingPower = plugin.totalVotingPower(block.number - 1);
@@ -187,9 +181,7 @@ contract MaciVotingProposalCreationTest is MaciVotingTest {
         bytes memory data = abi.encode(uint256(0), uint8(0), false);
 
         // Create a proposal
-        vm.expectRevert(
-            abi.encodeWithSelector(MaciVoting.ProposalCreationForbidden.selector, address(0x0A))
-        );
+        vm.expectRevert(abi.encodeWithSelector(MaciVoting.ProposalCreationForbidden.selector, address(0x0A)));
         plugin.createProposal({
             _metadata: bytes("ipfs://hello"),
             _actions: _actions,
@@ -257,9 +249,7 @@ contract MaciVotingProposalExecutionTest is MaciVotingTest {
             900 // no votes
         );
 
-        vm.expectRevert(
-            abi.encodeWithSelector(MaciVoting.ProposalExecutionForbidden.selector, proposalId)
-        );
+        vm.expectRevert(abi.encodeWithSelector(MaciVoting.ProposalExecutionForbidden.selector, proposalId));
         plugin.execute(proposalId);
 
         vm.stopPrank();
@@ -279,10 +269,7 @@ contract MaciVotingChangeCoordinatorPublicKeyTest is MaciVotingTest {
         DomainObjs.PublicKey memory newPublicKey = DomainObjs.PublicKey({x: oldX + 1, y: oldY + 1});
 
         // Encode the function call
-        bytes memory callData = abi.encodeWithSignature(
-            "changeCoordinatorPublicKey((uint256,uint256))",
-            newPublicKey
-        );
+        bytes memory callData = abi.encodeWithSignature("changeCoordinatorPublicKey((uint256,uint256))", newPublicKey);
         // Create DAO action
         Action[] memory actions = new Action[](1);
         actions[0] = Action({

@@ -65,9 +65,6 @@ contract MaciVotingE2E is AragonE2E {
         assertEq(version.buildMetadata, NON_EMPTY_BYTES);
 
         // test dao
-        assertEq(
-            keccak256(bytes(DAO(payable(dao)).daoURI())),
-            keccak256(bytes("https://mockDaoURL.com"))
-        );
+        assertEq(keccak256(bytes(DAO(payable(dao)).daoURI())), keccak256(bytes("https://mockDaoURL.com")));
     }
 }

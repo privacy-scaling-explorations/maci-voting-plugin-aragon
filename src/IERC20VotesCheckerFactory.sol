@@ -7,9 +7,5 @@ pragma solidity ^0.8.29;
 interface IERC20VotesCheckerFactory {
     /// @notice Deploys a new clone contract.
     /// @dev This function should be implemented by the factory contract.
-    function deploy(
-        address _token,
-        uint256 _snapshotBlock,
-        uint256 _threshold
-    ) external returns (address);
+    function deploy(address _token, uint256 _snapshotBlock, uint256 _threshold) external returns (address);
 }

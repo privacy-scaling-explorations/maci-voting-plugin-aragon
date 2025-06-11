@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.29;
 
+/* solhint-disable no-console */
+
 import {Vm} from "forge-std/Test.sol";
 import {console2} from "forge-std/console2.sol";
 
-import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
@@ -39,10 +40,7 @@ contract AragonE2E is AragonTest {
     /// @param _repoSubdomain The subdomain for the new PluginRepo
     /// @param _pluginSetup The address of the plugin setup contract
     /// @return repo The address of the newly created PluginRepo
-    function deployRepo(
-        string memory _repoSubdomain,
-        address _pluginSetup
-    ) internal returns (PluginRepo repo) {
+    function deployRepo(string memory _repoSubdomain, address _pluginSetup) internal returns (PluginRepo repo) {
         repo = repoFactory.createPluginRepoWithFirstVersion({
             _subdomain: _repoSubdomain,
             _pluginSetup: _pluginSetup,
@@ -57,10 +55,7 @@ contract AragonE2E is AragonTest {
     /// @param installData The installation data for the DAO
     /// @return dao The newly created DAO
     /// @return plugin The plugin used in the DAO
-    function deployDao(
-        PluginRepo repo,
-        bytes memory installData
-    ) internal returns (address dao, address plugin) {
+    function deployDao(PluginRepo repo, bytes memory installData) internal returns (address dao, address plugin) {
         // 1. dao settings
         IDAOFactory.DAOSettings memory daoSettings = IDAOFactory.DAOSettings({
             trustedForwarder: address(0),
@@ -83,10 +78,7 @@ contract AragonE2E is AragonTest {
         // 4. get the plugin address
         Vm.Log[] memory entries = vm.getRecordedLogs();
         for (uint256 i = 0; i < entries.length; i++) {
-            if (
-                entries[i].topics[0] ==
-                keccak256("InstallationApplied(address,address,bytes32,bytes32)")
-            ) {
+            if (entries[i].topics[0] == keccak256("InstallationApplied(address,address,bytes32,bytes32)")) {
                 // the plugin address is the third topic
                 plugin = address(uint160(uint256(entries[i].topics[2])));
             }

@@ -19,7 +19,8 @@ interface IDAOFactory {
 
     /// @notice The container with the information required to install a plugin on the DAO.
     /// @param pluginSetupRef The `PluginSetupRepo` address of the plugin and the version tag.
-    /// @param data The bytes-encoded data containing the input parameters for the installation as specified in the plugin's build metadata JSON file.
+    /// @param data The bytes-encoded data containing the input parameters for the installation
+    ///as specified in the plugin's build metadata JSON file.
     struct PluginSettings {
         PluginSetupRef pluginSetupRef;
         bytes data;
@@ -33,7 +34,8 @@ interface IDAOFactory {
         IPluginSetup.PreparedSetupData preparedSetupData;
     }
 
-    /// @notice Creates a new DAO, registers it in the DAO registry, and optionally installs plugins via the plugin setup processor.
+    /// @notice Creates a new DAO, registers it in the DAO registry, and optionally installs plugins via the
+    /// plugin setup processor.
     /// @dev If `_pluginSettings` is empty, the caller is granted `EXECUTE_PERMISSION` on the DAO.
     /// @param _daoSettings The settings to configure during DAO initialization.
     /// @param _pluginSettings An array containing plugin references and settings. If provided, each plugin is installed
