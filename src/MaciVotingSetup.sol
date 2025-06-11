@@ -109,19 +109,11 @@ contract MaciVotingSetup is PluginSetup {
         preparedSetupData.helpers[0] = address(new VotingPowerCondition(plugin));
         preparedSetupData.helpers[1] = token;
 
-        preparedSetupData.permissions = new PermissionLib.MultiTargetPermission[](2);
+        preparedSetupData.permissions = new PermissionLib.MultiTargetPermission[](1);
         preparedSetupData.permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: _dao,
             who: plugin,
-            condition: PermissionLib.NO_CONDITION,
-            permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
-        });
-
-        preparedSetupData.permissions[1] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
-            where: plugin,
-            who: _dao,
             condition: PermissionLib.NO_CONDITION,
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });

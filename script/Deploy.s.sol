@@ -44,7 +44,7 @@ contract MaciVotingScript is Script {
         // 3. Defining the DAO Settings
         IDAOFactory.DAOSettings memory daoSettings = getDAOSettings();
 
-        // // 4. Defining the plugin settings
+        // 4. Defining the plugin settings
         IDAOFactory.PluginSettings[] memory pluginSettings = getPluginSettings(pluginRepo);
 
         // 5. Deploying the DAO
@@ -127,7 +127,6 @@ contract MaciVotingScript is Script {
             treeDepths: maciEnvVariables.treeDepths,
             messageBatchSize: maciEnvVariables.messageBatchSize
         });
-        return (params, tokenSettings, mintSettings);
     }
 
     function getPluginSettings(

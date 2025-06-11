@@ -78,8 +78,8 @@ library Utils {
     {
         MaciVotingSetup.TokenSettings memory tokenSettings = MaciVotingSetup.TokenSettings({
             addr: address(0), // If set to `address(0)`, a new `GovernanceERC20` token is deployed
-            name: "Test Token",
-            symbol: "TEST"
+            name: vm.envString("TOKEN_NAME"),
+            symbol: vm.envString("TOKEN_SYMBOL")
         });
         GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20.MintSettings({
             receivers: new address[](3),
