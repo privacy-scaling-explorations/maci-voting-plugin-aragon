@@ -91,11 +91,6 @@ contract MaciVotingSetup is PluginSetup {
 
         plugin = _deployPlugin(_params);
 
-        // return permissions for the DAO to setup
-        preparedSetupData.helpers = new address[](2);
-        preparedSetupData.helpers[0] = address(new VotingPowerCondition(plugin));
-        preparedSetupData.helpers[1] = token;
-
         preparedSetupData.permissions = new PermissionLib.MultiTargetPermission[](2);
         preparedSetupData.permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
