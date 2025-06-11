@@ -207,7 +207,7 @@ contract MaciVotingProposalExecutionTest is MaciVotingTest {
         super.setUp();
     }
 
-    function test_execute() public {
+    function test_execute_proposal() public {
         vm.startPrank(address(0xB0b));
 
         Action[] memory _actions = new Action[](1);
@@ -234,10 +234,46 @@ contract MaciVotingProposalExecutionTest is MaciVotingTest {
         vm.stopPrank();
     }
 
-    function test_change() public {
+    function test_execute_proposal_reverts_if_not_enough_votes() public {
         vm.startPrank(address(0xB0b));
 
-        // TODO: prove and tally results
+        Action[] memory _actions = new Action[](1);
+        _actions[0] = Action({to: address(0x0), value: 0, data: bytes("0x00")});
+        bytes memory data = abi.encode(uint256(0), uint8(0), false);
+
+        // Create a proposal
+        uint256 proposalId = plugin.createProposal({
+            _metadata: bytes("ipfs://hello"),
+            _actions: _actions,
+            _startDate: uint64(block.timestamp + 5 minutes),
+            _endDate: uint64(block.timestamp + 15 minutes),
+            _data: data
+        });
+
+        // Mock tally results with insufficient votes
+        mockTallyResults(
+            proposalId,
+            100, // yes votes
+            900 // no votes
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(MaciVoting.ProposalExecutionForbidden.selector, proposalId)
+        );
+        plugin.execute(proposalId);
+
+        vm.stopPrank();
+    }
+}
+
+contract MaciVotingChangeCoordinatorPublicKeyTest is MaciVotingTest {
+    function setUp() public override {
+        super.setUp();
+    }
+
+    function test_change_coordinator_public_key() public {
+        vm.startPrank(address(0xB0b));
+
         (uint256 oldX, uint256 oldY) = plugin.coordinatorPublicKey();
 
         DomainObjs.PublicKey memory newPublicKey = DomainObjs.PublicKey({x: oldX + 1, y: oldY + 1});
