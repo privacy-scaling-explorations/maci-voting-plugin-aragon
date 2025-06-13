@@ -1,16 +1,25 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.29;
 
 import {IVotesUpgradeable} from
     "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
+import {IERC20Upgradeable} from
+    "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IGovernanceWrappedERC20} from
+    "@aragon/token-voting-plugin/ERC20/governance/IGovernanceWrappedERC20.sol";
+
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {Action} from "@aragon/osx-commons-contracts/src/executors/IExecutor.sol";
+import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
+import {GovernanceWrappedERC20} from
+    "@aragon/token-voting-plugin/ERC20/governance/GovernanceWrappedERC20.sol";
+
 import {MACI} from "@maci-protocol/contracts/contracts/MACI.sol";
 import {IMACI} from "@maci-protocol/contracts/contracts/interfaces/IMACI.sol";
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
-import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
 
 import {AragonTest} from "./base/AragonTest.sol";
 import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
@@ -31,13 +40,15 @@ abstract contract MaciVotingTest is AragonTest {
 
         Utils.MaciEnvVariables memory maciEnvVariables = Utils.readMaciEnv();
         (
-            GovernanceERC20 tokenToClone,
+            GovernanceERC20 governanceERC20Base,
             MaciVotingSetup.TokenSettings memory tokenSettings,
             GovernanceERC20.MintSettings memory mintSettings
         ) = Utils.getGovernanceTokenAndMintSettings();
+        GovernanceWrappedERC20 governanceWrappedERC20Base =
+            new GovernanceWrappedERC20(IERC20Upgradeable(address(0)), "", "");
         address maciVoting = address(new MaciVoting());
 
-        setup = new MaciVotingSetup(tokenToClone, maciVoting);
+        setup = new MaciVotingSetup(governanceERC20Base, governanceWrappedERC20Base, maciVoting);
 
         IMaciVoting.InitializationParams memory params = IMaciVoting.InitializationParams({
             dao: IDAO(address(0)), // Set in MaciVotingSetup.prepareInstallation
@@ -333,5 +344,39 @@ contract MaciVotingChangeCoordinatorPublicKeyTest is MaciVotingTest {
         plugin.changeCoordinatorPublicKey(newPublicKey);
 
         vm.stopPrank();
+    }
+}
+
+contract MaciVotingWrappedERC20Test is MaciVotingTest {
+    function setUp() public override {
+        super.setUp();
+    }
+
+    function test_setup_governancewrappederc20() public {
+        MaciVotingSetup.TokenSettings memory mockTokenSettings;
+        GovernanceERC20.MintSettings memory mockMintSettings;
+        IMaciVoting.InitializationParams memory mockParams;
+
+        ERC20 erc20 = new ERC20("Test Token", "TEST");
+        mockTokenSettings = MaciVotingSetup.TokenSettings({
+            addr: address(erc20),
+            name: "Wrapped Voting Token",
+            symbol: "WVT"
+        });
+
+        bytes memory setupData = abi.encode(mockParams, mockTokenSettings, mockMintSettings);
+        (, address _plugin) = createMockDaoWithPlugin(setup, setupData);
+
+        GovernanceWrappedERC20 wrappedToken =
+            GovernanceWrappedERC20(address(MaciVoting(_plugin).getVotingToken()));
+
+        assertEq(wrappedToken.name(), "Wrapped Voting Token");
+        assertEq(wrappedToken.symbol(), "WVT");
+        assertEq(ERC20(address(wrappedToken.underlying())).name(), "Test Token");
+        assertEq(ERC20(address(wrappedToken.underlying())).symbol(), "TEST");
+
+        assertFalse(setup.supportsIVotesInterface(address(erc20)));
+        assertTrue(wrappedToken.supportsInterface(type(IGovernanceWrappedERC20).interfaceId));
+        assertTrue(wrappedToken.supportsInterface(type(IVotesUpgradeable).interfaceId));
     }
 }

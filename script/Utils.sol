@@ -91,9 +91,9 @@ library Utils {
             mintSettings.amounts[i] = amount;
         }
 
-        GovernanceERC20 tokenToClone = new GovernanceERC20(
+        GovernanceERC20 governanceERC20Base = new GovernanceERC20(
             IDAO(address(0x0)), tokenSettings.name, tokenSettings.symbol, mintSettings
         );
-        return (tokenToClone, tokenSettings, mintSettings);
+        return (governanceERC20Base, tokenSettings, mintSettings);
     }
 }
