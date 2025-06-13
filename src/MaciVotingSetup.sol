@@ -3,10 +3,14 @@
 pragma solidity ^0.8.29;
 
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
-import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
+import {IVotesUpgradeable} from
+    "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
 import {PermissionLib} from "@aragon/osx-commons-contracts/src/permission/PermissionLib.sol";
-import {PluginSetup, IPluginSetup} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginSetup.sol";
+import {
+    PluginSetup,
+    IPluginSetup
+} from "@aragon/osx-commons-contracts/src/plugin/setup/PluginSetup.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
@@ -26,7 +30,8 @@ contract MaciVotingSetup is PluginSetup {
     address public immutable governanceERC20Base;
 
     /// @notice Configuration settings for a token used within the governance system.
-    /// @param addr The token address. If set to `address(0)`, a new `GovernanceERC20` token is deployed.
+    /// @param addr The token address. If set to `address(0)`, a new
+    /// `GovernanceERC20` token is deployed.
     ///     If the address implements `IVotes`, it will be used directly; otherwise,
     ///     it is wrapped as `GovernanceWrappedERC20`.
     /// @param name The name of the token.
@@ -40,7 +45,9 @@ contract MaciVotingSetup is PluginSetup {
     /// @notice Constructs the `PluginSetup` by storing the `MaciVoting` implementation address.
     /// @dev The implementation address is used to deploy UUPS proxies referencing it and
     /// to verify the plugin on the respective block explorers.
-    constructor(GovernanceERC20 _governanceERC20Base, address _maciVoting) PluginSetup(_maciVoting) {
+    constructor(GovernanceERC20 _governanceERC20Base, address _maciVoting)
+        PluginSetup(_maciVoting)
+    {
         governanceERC20Base = address(_governanceERC20Base);
     }
 
@@ -50,23 +57,30 @@ contract MaciVotingSetup is PluginSetup {
         GovernanceERC20.MintSettings memory mintSettings
     ) internal returns (address token) {
         token = governanceERC20Base.clone();
-        GovernanceERC20(token).initialize(IDAO(_dao), tokenSettings.name, tokenSettings.symbol, mintSettings);
+        GovernanceERC20(token).initialize(
+            IDAO(_dao), tokenSettings.name, tokenSettings.symbol, mintSettings
+        );
     }
 
-    function _deployPlugin(IMaciVoting.InitializationParams memory _params) internal returns (address plugin_) {
+    function _deployPlugin(IMaciVoting.InitializationParams memory _params)
+        internal
+        returns (address plugin_)
+    {
         plugin_ = IMPLEMENTATION.deployUUPSProxy(abi.encodeCall(MaciVoting.initialize, _params));
     }
 
     /// @inheritdoc IPluginSetup
-    function prepareInstallation(
-        address _dao,
-        bytes memory _data
-    ) external returns (address plugin, PreparedSetupData memory preparedSetupData) {
+    function prepareInstallation(address _dao, bytes memory _data)
+        external
+        returns (address plugin, PreparedSetupData memory preparedSetupData)
+    {
         (
             IMaciVoting.InitializationParams memory _params,
             TokenSettings memory tokenSettings,
             GovernanceERC20.MintSettings memory mintSettings
-        ) = abi.decode(_data, (IMaciVoting.InitializationParams, TokenSettings, GovernanceERC20.MintSettings));
+        ) = abi.decode(
+            _data, (IMaciVoting.InitializationParams, TokenSettings, GovernanceERC20.MintSettings)
+        );
 
         address token = _deployToken(_dao, tokenSettings, mintSettings);
 
@@ -94,10 +108,11 @@ contract MaciVotingSetup is PluginSetup {
     }
 
     /// @inheritdoc IPluginSetup
-    function prepareUninstallation(
-        address _dao,
-        SetupPayload calldata _payload
-    ) external view returns (PermissionLib.MultiTargetPermission[] memory permissions) {
+    function prepareUninstallation(address _dao, SetupPayload calldata _payload)
+        external
+        view
+        returns (PermissionLib.MultiTargetPermission[] memory permissions)
+    {
         permissions = new PermissionLib.MultiTargetPermission[](2);
 
         permissions[0] = PermissionLib.MultiTargetPermission({
