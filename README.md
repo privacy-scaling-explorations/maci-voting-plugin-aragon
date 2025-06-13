@@ -44,7 +44,7 @@ Contributions are welcome! Please read our contributing guidelines to get starte
 
 License 📄
 
-This project is licensed under AGPL-3.0-or-later.
+This project is MIT licensed
 
 Support 💬
 

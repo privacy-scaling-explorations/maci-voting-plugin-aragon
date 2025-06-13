@@ -11,9 +11,13 @@ import {PluginRepoFactory} from "@aragon/osx/framework/plugin/repo/PluginRepoFac
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
 import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
+import {GovernanceWrappedERC20} from
+    "@aragon/token-voting-plugin/ERC20/governance/GovernanceWrappedERC20.sol";
 
 import {IVotesUpgradeable} from
     "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
+import {IERC20Upgradeable} from
+    "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 
 import {MaciVoting} from "../src/MaciVoting.sol";
 import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
@@ -79,16 +83,19 @@ contract MaciVotingScript is Script {
     }
 
     function deployPluginSetup() public returns (MaciVotingSetup) {
-        // this ERC20 is just a placeholder, it will be cloned with token
-        // and mint settings from Utils
-        GovernanceERC20 tokenToClone = new GovernanceERC20(
-            IDAO(address(0x0)),
+        // GovernanceERC20 and GovernanceWrappedERC20 are implementation contracts. If one is
+        // required, it will be cloned with token and mint settings from Utils
+        GovernanceERC20 governanceERC20Base = new GovernanceERC20(
+            IDAO(address(0)),
             "",
             "",
             GovernanceERC20.MintSettings({receivers: new address[](0), amounts: new uint256[](0)})
         );
+        GovernanceWrappedERC20 governanceWrappedERC20Base =
+            new GovernanceWrappedERC20(IERC20Upgradeable(address(0)), "", "");
         address maciVoting = address(new MaciVoting());
-        MaciVotingSetup pluginSetup = new MaciVotingSetup(tokenToClone, maciVoting);
+        MaciVotingSetup pluginSetup =
+            new MaciVotingSetup(governanceERC20Base, governanceWrappedERC20Base, maciVoting);
         return pluginSetup;
     }
 
