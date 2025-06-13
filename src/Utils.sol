@@ -2,7 +2,8 @@
 
 pragma solidity ^0.8.29;
 
-// The base value to encode real-valued ratios on the interval `[0,1]` as integers on the interval `[0, 10**6]`.
+// The base value to encode real-valued ratios on the interval `[0,1]` as
+// integers on the interval `[0, 10**6]`.
 uint256 constant RATIO_BASE = 10 ** 6;
 
 /// @notice Thrown if a ratio value exceeds the maximal value of `10**6`.

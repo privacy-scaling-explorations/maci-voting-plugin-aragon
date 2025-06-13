@@ -4,7 +4,8 @@ pragma solidity 0.8.29;
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
-import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
+import {IVotesUpgradeable} from
+    "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
 
 import {AragonE2E} from "./base/AragonE2E.sol";
@@ -65,6 +66,9 @@ contract MaciVotingE2E is AragonE2E {
         assertEq(version.buildMetadata, NON_EMPTY_BYTES);
 
         // test dao
-        assertEq(keccak256(bytes(DAO(payable(dao)).daoURI())), keccak256(bytes("https://mockDaoURL.com")));
+        assertEq(
+            keccak256(bytes(DAO(payable(dao)).daoURI())),
+            keccak256(bytes("https://mockDaoURL.com"))
+        );
     }
 }

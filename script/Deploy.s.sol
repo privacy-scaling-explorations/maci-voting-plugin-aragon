@@ -12,7 +12,8 @@ import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
 import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
 
-import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
+import {IVotesUpgradeable} from
+    "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
 import {MaciVoting} from "../src/MaciVoting.sol";
 import {MaciVotingSetup} from "../src/MaciVotingSetup.sol";
@@ -56,7 +57,10 @@ contract MaciVotingScript is Script {
         Vm.Log[] memory logEntries = vm.getRecordedLogs();
 
         for (uint256 i = 0; i < logEntries.length; i++) {
-            if (logEntries[i].topics[0] == keccak256("InstallationApplied(address,address,bytes32,bytes32)")) {
+            if (
+                logEntries[i].topics[0]
+                    == keccak256("InstallationApplied(address,address,bytes32,bytes32)")
+            ) {
                 pluginAddress.push(address(uint160(uint256(logEntries[i].topics[2]))));
             }
         }
@@ -75,7 +79,8 @@ contract MaciVotingScript is Script {
     }
 
     function deployPluginSetup() public returns (MaciVotingSetup) {
-        // this ERC20 is just a placeholder, it will be cloned with token and mint settings from Utils
+        // this ERC20 is just a placeholder, it will be cloned with token
+        // and mint settings from Utils
         GovernanceERC20 tokenToClone = new GovernanceERC20(
             IDAO(address(0x0)),
             "",
@@ -127,9 +132,10 @@ contract MaciVotingScript is Script {
         });
     }
 
-    function getPluginSettings(
-        PluginRepo pluginRepo
-    ) public returns (IDAOFactory.PluginSettings[] memory pluginSettings) {
+    function getPluginSettings(PluginRepo pluginRepo)
+        public
+        returns (IDAOFactory.PluginSettings[] memory pluginSettings)
+    {
         (
             IMaciVoting.InitializationParams memory params,
             MaciVotingSetup.TokenSettings memory tokenSettings,
@@ -138,6 +144,7 @@ contract MaciVotingScript is Script {
         bytes memory pluginSettingsData = abi.encode(params, tokenSettings, mintSettings);
         PluginRepo.Tag memory tag = PluginRepo.Tag(1, 1);
         pluginSettings = new IDAOFactory.PluginSettings[](1);
-        pluginSettings[0] = IDAOFactory.PluginSettings(PluginSetupRef(tag, pluginRepo), pluginSettingsData);
+        pluginSettings[0] =
+            IDAOFactory.PluginSettings(PluginSetupRef(tag, pluginRepo), pluginSettingsData);
     }
 }

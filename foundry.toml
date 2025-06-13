@@ -16,6 +16,12 @@ src = "src"
 test = "test"
 ignored_warnings_from = ["node_modules"]
 
+[fmt]
+# solhint appears to count 100 as 101 so lines of 100 characters
+# throw a solhint error. Switching forge to 99 fixes this.
+line_length = 99
+wrap_comments = true
+
 [profile.ci]
 fuzz = { runs = 10_000 }
 verbosity = 4

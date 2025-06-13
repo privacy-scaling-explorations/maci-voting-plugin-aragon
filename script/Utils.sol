@@ -57,7 +57,8 @@ library Utils {
         maciEnvVariables.verifyingKeysRegistry = VM.envAddress("VERIFYING_KEY_REGISTRY_ADDRESS");
         maciEnvVariables.policyFactory = VM.envAddress("POLICY_FACTORY_ADDRESS");
         maciEnvVariables.checkerFactory = VM.envAddress("CHECKER_FACTORY_ADDRESS");
-        maciEnvVariables.voiceCreditProxyFactory = VM.envAddress("VOICE_CREDIT_PROXY_FACTORY_ADDRESS");
+        maciEnvVariables.voiceCreditProxyFactory =
+            VM.envAddress("VOICE_CREDIT_PROXY_FACTORY_ADDRESS");
         maciEnvVariables.treeDepths = Params.TreeDepths({
             tallyProcessingStateTreeDepth: uint8(VM.envUint("TALLY_PROCESSING_STATE_TREE_DEPTH")),
             voteOptionTreeDepth: uint8(VM.envUint("VOTE_OPTION_TREE_DEPTH")),
@@ -68,17 +69,19 @@ library Utils {
 
     function getGovernanceTokenAndMintSettings()
         public
-        returns (GovernanceERC20, MaciVotingSetup.TokenSettings memory, GovernanceERC20.MintSettings memory)
+        returns (
+            GovernanceERC20,
+            MaciVotingSetup.TokenSettings memory,
+            GovernanceERC20.MintSettings memory
+        )
     {
         MaciVotingSetup.TokenSettings memory tokenSettings = MaciVotingSetup.TokenSettings({
             addr: address(0), // If set to `address(0)`, a new `GovernanceERC20` token is deployed
             name: VM.envString("TOKEN_NAME"),
             symbol: VM.envString("TOKEN_SYMBOL")
         });
-        GovernanceERC20.MintSettings memory mintSettings = GovernanceERC20.MintSettings({
-            receivers: new address[](3),
-            amounts: new uint256[](3)
-        });
+        GovernanceERC20.MintSettings memory mintSettings =
+            GovernanceERC20.MintSettings({receivers: new address[](3), amounts: new uint256[](3)});
 
         address[] memory receivers = VM.envAddress("MINT_SETTINGS_RECEIVERS", ",");
         uint256 amount = VM.envUint("MINT_SETTINGS_AMOUNT");
@@ -89,10 +92,7 @@ library Utils {
         }
 
         GovernanceERC20 tokenToClone = new GovernanceERC20(
-            IDAO(address(0x0)),
-            tokenSettings.name,
-            tokenSettings.symbol,
-            mintSettings
+            IDAO(address(0x0)), tokenSettings.name, tokenSettings.symbol, mintSettings
         );
         return (tokenToClone, tokenSettings, mintSettings);
     }

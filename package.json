@@ -21,10 +21,11 @@
   "scripts": {
     "clean": "rm -rf cache out",
     "build": "forge build",
-    "lint": "pnpm lint:sol && pnpm prettier:check",
+    "lint": "pnpm lint:sol && pnpm fmt:check",
     "lint:sol": "solhint --max-warnings 0 \"{script,src,test}/**/*.sol\"",
-    "prettier:check": "prettier --check --plugin=prettier-plugin-solidity \"**/*.{js,json,md,sol,ts,yml}\"",
-    "prettier:write": "prettier --write --plugin=prettier-plugin-solidity \"**/*.{js,json,md,sol,ts,yml}\"",
+    "lint:sol:fix": "solhint --max-warnings 0 --fix --noPrompt \"{script,src,test}/**/*.sol\"",
+    "fmt:check": "forge fmt --check && prettier --check \"**/*.{js,json,md,ts,yml}\"",
+    "fmt:write": "forge fmt && prettier --write \"**/*.{js,json,md,ts,yml}\"",
     "test": "forge test -vvv",
     "test:coverage": "forge coverage",
     "test:coverage:report": "forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage",
@@ -34,7 +35,6 @@
     "forge-std": "github:foundry-rs/forge-std#v1.9.7",
     "husky": "^9.1.7",
     "prettier": "^3.5.3",
-    "prettier-plugin-solidity": "^2.0.0",
     "solhint": "^5.1.0"
   },
   "dependencies": {
