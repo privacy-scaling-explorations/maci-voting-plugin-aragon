@@ -2,7 +2,8 @@
 pragma solidity ^0.8.29;
 
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
-import {IVotesUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
+import {IVotesUpgradeable} from
+    "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 import {Params} from "@maci-protocol/contracts/contracts/utilities/Params.sol";

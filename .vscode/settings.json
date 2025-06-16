@@ -1,13 +1,11 @@
 {
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
-  "prettier.documentSelectors": ["**/*.sol"],
-  "solidity.formatter": "prettier",
-  "editor.tabSize": 4,
   "[json]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[solidity]": {
-    "editor.defaultFormatter": "NomicFoundation.hardhat-solidity"
-  }
+    "editor.defaultFormatter": "JuanBlanco.solidity"
+  },
+  "solidity.formatter": "forge"
 }
