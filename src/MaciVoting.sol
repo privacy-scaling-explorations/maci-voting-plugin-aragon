@@ -7,12 +7,15 @@ import {PluginUUPSUpgradeable} from
 import {_applyRatioCeiled} from "@aragon/osx-commons-contracts/src/utils/math/Ratio.sol";
 import {ProposalUpgradeable} from
     "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/ProposalUpgradeable.sol";
+import {IProposal} from
+    "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/IProposal.sol";
 import {Action} from "@aragon/osx-commons-contracts/src/executors/IExecutor.sol";
 
 import {SafeCastUpgradeable} from
     "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import {IVotesUpgradeable} from
     "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {MACI} from "@maci-protocol/contracts/contracts/MACI.sol";
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 import {Tally} from "@maci-protocol/contracts/contracts/Tally.sol";
@@ -35,8 +38,10 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     using SafeCastUpgradeable for uint256;
 
     /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
-    bytes4 internal constant MACI_VOTING_INTERFACE_ID =
-        this.initialize.selector ^ this.getVotingToken.selector;
+    bytes4 internal constant MACI_VOTING_INTERFACE_ID = this.initialize.selector
+        ^ this.minProposerVotingPower.selector ^ this.totalVotingPower.selector
+        ^ this.getVotingToken.selector ^ this.minParticipation.selector ^ this.minDuration.selector
+        ^ this.getProposal.selector ^ this.changeCoordinatorPublicKey.selector;
 
     /// @notice The ID of the permission required to call the
     /// `changeCoordinatorPublicKey` function.
@@ -47,6 +52,9 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes)
     /// compatible contract referencing the token being used for voting.
     IVotesUpgradeable private votingToken;
+
+    /// @notice The factor to scale down the voice credits.
+    uint256 private voiceCreditFactor;
 
     /// @notice The address of the maci contract.
     MACI public maci;
@@ -105,63 +113,6 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         DomainObjs.PublicKey oldCoordinatorPublicKey, DomainObjs.PublicKey newCoordinatorPublicKey
     );
 
-    /// @notice A container for the proposal parameters at the time of proposal creation.
-    /// @param startDate The start date of the proposal vote.
-    /// @param endDate The end date of the proposal vote.
-    /// @param snapshotBlock The number of the block prior to the proposal creation.
-    /// @param minVotingPower The minimum voting power needed.
-    struct ProposalParameters {
-        uint64 startDate;
-        uint64 endDate;
-        uint256 snapshotBlock;
-        uint256 minVotingPower;
-    }
-
-    /// @notice A container for the results of the voting. We read from the poll and
-    /// store the results here.
-    /// @param yes The number of votes for the "yes" option.
-    /// @param no The number of votes for the "no" option.
-    /// @param abstain The number of votes for the "abstain" option.
-    struct TallyResults {
-        uint256 yes;
-        uint256 no;
-        uint256 abstain;
-    }
-
-    /// @notice A container for proposal-related information.
-    /// @param active Whether the proposal is active or not (it could have expired).
-    /// @param executed Whether the proposal is executed or not.
-    /// @param parameters The proposal parameters at the time of the proposal creation.
-    /// @param actions The actions to be executed when the proposal passes.
-    /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual
-    /// actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th
-    /// action reverts. A failure map value of 0 requires every action to not revert.
-    /// @param targetConfig Configuration for the execution target, specifying the target address
-    /// and operation type (either `Call` or `DelegateCall`). Defined by `TargetConfig` in the
-    /// `IPlugin` interface,
-    ///     part of the `osx-commons-contracts` package, added in build 3.
-    /// @param pollId The ID of the MACI poll
-    /// @param pollAddress The address of the MACI poll
-    struct Proposal {
-        bool active;
-        bool executed;
-        ProposalParameters parameters;
-        TallyResults tally;
-        Action[] actions;
-        uint256 allowFailureMap;
-        uint256 pollId;
-        address pollAddress;
-    }
-
-    // @notice Tally results struct that is implementd in Tally but not defined
-    // in the interface ITally
-    // @param flag Whether the tally value was initialized or not
-    // @param value The tally value of an option
-    struct TallyResult {
-        bool flag;
-        uint256 value;
-    }
-
     /// @notice Disables the initializers on the implementation contract to prevent
     /// it from being left uninitialized.
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -173,7 +124,11 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     /// @param _params The initialization parameters. Check `src/IMaciVoting`
     function initialize(IMaciVoting.InitializationParams memory _params) external initializer {
         __PluginUUPSUpgradeable_init(_params.dao);
+        _setTargetConfig(_params.targetConfig);
+
         votingToken = _params.token;
+        // set voiceCreditFactor equal to number of decimals so 1 token = 1 voice credit
+        voiceCreditFactor = 10 ** IERC20Metadata(address(votingToken)).decimals();
 
         maci = MACI(_params.maci);
         coordinatorPublicKey = _params.coordinatorPublicKey;
@@ -193,47 +148,58 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     function supportsInterface(bytes4 _interfaceId)
         public
         view
-        virtual
         override(PluginUUPSUpgradeable, ProposalUpgradeable)
         returns (bool)
     {
         return _interfaceId == MACI_VOTING_INTERFACE_ID || super.supportsInterface(_interfaceId);
     }
 
+    /// @inheritdoc IProposal
     function customProposalParamsABI() external pure returns (string memory) {
         return "(uint256 allowFailureMap, uint8 voteOption, bool tryEarlyExecution)";
-    }
-
-    function upgradeTo(address newAddress) public pure override {
-        /* solhint-disable-next-line gas-custom-errors */
-        require(newAddress != address(0), "Not allowed");
     }
 
     /// @notice Returns the minimum voting power required to create a proposal stored
     /// in the voting settings.
     /// @return The minimum voting power required to create a proposal.
-    function minProposerVotingPower() public view virtual returns (uint256) {
+    function minProposerVotingPower() public view returns (uint256) {
         return votingSettings.minProposerVotingPower;
     }
 
+    /// @notice Returns the total voting power at a specific block number.
+    /// @param _blockNumber The block number to query the total voting power at.
+    /// @return The total voting power (token supply) at the specified block.
     function totalVotingPower(uint256 _blockNumber) public view returns (uint256) {
         return votingToken.getPastTotalSupply(_blockNumber);
     }
 
     /// @notice get the voting token interface
-    /// @return The voting token interface.
+    /// @return The voting token
     function getVotingToken() public view returns (IVotesUpgradeable) {
         return votingToken;
     }
 
-    function minParticipation() public view virtual returns (uint32) {
+    /// @notice Returns the minimum participation of the proposal
+    /// @return The minimum participation
+    function minParticipation() public view returns (uint32) {
         return votingSettings.minParticipation;
     }
 
+    /// @notice Returns the minimum duration of the proposal
+    /// @return The minimum duration
+    function minDuration() public view returns (uint64) {
+        return votingSettings.minDuration;
+    }
+
+    /// @inheritdoc IProposal
     function hasSucceeded(uint256 _proposalId) external view returns (bool) {
         return proposals[_proposalId].executed;
     }
 
+    /// @notice Returns the proposal data for a given proposal ID.
+    /// @param _proposalId The ID of the proposal to retrieve.
+    /// @return proposal_ The proposal data including execution status, parameters, tally results,
+    /// actions, and other metadata.
     function getProposal(uint256 _proposalId) external view returns (Proposal memory proposal_) {
         proposal_ = proposals[_proposalId];
     }
@@ -254,7 +220,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         address policy = policyFactory.deploy(checker);
 
         address initialVoiceCreditProxy =
-            voiceCreditProxyFactory.deploy(block.number, address(votingToken), 10e16);
+            voiceCreditProxyFactory.deploy(block.number, address(votingToken), voiceCreditFactor);
 
         // Arguments to deploy a poll
         IMACI.DeployPollArgs memory deployPollArgs = IMACI.DeployPollArgs({
@@ -288,7 +254,6 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     function _validateProposalDates(uint64 _start, uint64 _end)
         internal
         view
-        virtual
         returns (uint64 startDate, uint64 endDate)
     {
         uint64 currentTimestamp = block.timestamp.toUint64();
@@ -380,20 +345,27 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         }
 
         (_startDate, _endDate) = _validateProposalDates(_startDate, _endDate);
+
         proposalId = _createProposalId(keccak256(abi.encode(_actions, _metadata)));
+
+        // Store proposal related information
+        Proposal storage proposal_ = proposals[proposalId];
+
         if (_proposalExists(proposalId)) {
             revert ProposalAlreadyExists(proposalId);
         }
 
         {
-            // Store proposal related information
-            Proposal storage proposal_ = proposals[proposalId];
-            proposal_.active = true;
             proposal_.parameters.startDate = _startDate;
             proposal_.parameters.endDate = _endDate;
             proposal_.parameters.snapshotBlock = snapshotBlock;
             proposal_.parameters.minVotingPower =
                 _applyRatioCeiled(totalVotingPower_, minParticipation());
+
+            // TODO: #24 (merge-ok) decide whether to include minApprovalPower and other
+            // IMajorityVoting functionality
+            // proposal_.minApprovalPower = _applyRatioCeiled(totalVotingPower_, minApproval());
+            proposal_.targetConfig = getTargetConfig();
 
             (uint256 pollId, IMACI.PollContracts memory pollContracts) =
                 deployPoll(_startDate, _endDate, proposal_.parameters.minVotingPower);
@@ -467,7 +439,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         return proposals[_proposalId].parameters.snapshotBlock != 0;
     }
 
-    /// @dev Reverts if the proposal with the given `_proposalId` does not exist.
+    /// @inheritdoc IProposal
     function canExecute(uint256 _proposalId) public view returns (bool) {
         if (!_proposalExists(_proposalId)) {
             revert NonexistentProposal(_proposalId);
@@ -476,9 +448,8 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         return _canExecute(_proposalId);
     }
 
-    /// @notice Executes a proposal after the voting period has ended and results are available.
-    /// @param _proposalId The ID of the proposal.
-    function execute(uint256 _proposalId) public virtual {
+    /// @inheritdoc IProposal
+    function execute(uint256 _proposalId) external {
         if (!_canExecute(_proposalId)) {
             revert ProposalExecutionForbidden(_proposalId);
         }
@@ -496,13 +467,12 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         proposal_.tally.yes = yesValue;
         proposal_.tally.no = noValue;
 
-        TargetConfig memory targetConfig = getTargetConfig();
         _execute(
-            targetConfig.target,
+            proposal_.targetConfig.target,
             bytes32(_proposalId),
             proposal_.actions,
             proposal_.allowFailureMap,
-            targetConfig.operation
+            proposal_.targetConfig.operation
         );
 
         emit ProposalExecuted(_proposalId);
@@ -519,4 +489,9 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
         emit CoordinatorKeyChanged(oldCoordinatorPublicKey, _coordinatorPublicKey);
     }
+
+    /// @dev This empty reserved space is put in place to allow future versions to add new
+    /// variables without shifting down storage in the inheritance chain.
+    /// https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+    uint256[49] private __gap;
 }
