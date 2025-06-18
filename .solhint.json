@@ -7,7 +7,7 @@
     "func-visibility": ["error", { "ignoreConstructors": true }],
     "max-line-length": ["error", 100],
     "not-rely-on-time": "off",
-    "one-contract-per-file": "off",
-    "import-path-check": "off"
+    "import-path-check": "off",
+    "contract-name-capwords": "off"
   }
 }
