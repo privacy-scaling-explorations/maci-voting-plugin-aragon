@@ -22,8 +22,11 @@ import {IMaciVoting} from "../../src/IMaciVoting.sol";
 import {Utils} from "../../script/Utils.sol";
 
 abstract contract MaciVoting_Test_Base is AragonTest {
+    Utils.MaciEnvVariables internal maciEnvVariables;
+    IMaciVoting.InitializationParams internal initializationParams;
     DAO internal dao;
     MaciVoting internal plugin;
+    IVotesUpgradeable internal token;
     MaciVotingSetup internal setup;
     uint256 internal forkId;
 
@@ -32,7 +35,7 @@ abstract contract MaciVoting_Test_Base is AragonTest {
         forkId = vm.createFork(vm.envString("RPC_URL"));
         vm.selectFork(forkId);
 
-        Utils.MaciEnvVariables memory maciEnvVariables = Utils.readMaciEnv();
+        maciEnvVariables = Utils.readMaciEnv();
         (
             GovernanceERC20 governanceERC20Base,
             MaciVotingSetup.TokenSettings memory tokenSettings,
@@ -44,7 +47,7 @@ abstract contract MaciVoting_Test_Base is AragonTest {
 
         setup = new MaciVotingSetup(governanceERC20Base, governanceWrappedERC20Base, maciVoting);
 
-        IMaciVoting.InitializationParams memory params = IMaciVoting.InitializationParams({
+        initializationParams = IMaciVoting.InitializationParams({
             dao: IDAO(address(0)), // Set in MaciVotingSetup.prepareInstallation
             token: IVotesUpgradeable(address(0)), // Set in MaciVotingSetup.prepareInstallation
             maci: maciEnvVariables.maci,
@@ -60,12 +63,13 @@ abstract contract MaciVoting_Test_Base is AragonTest {
             messageBatchSize: maciEnvVariables.messageBatchSize
         });
 
-        bytes memory setupData = abi.encode(params, tokenSettings, mintSettings);
+        bytes memory setupData = abi.encode(initializationParams, tokenSettings, mintSettings);
 
         (DAO _dao, address _plugin) = createMockDaoWithPlugin(setup, setupData);
 
         dao = _dao;
         plugin = MaciVoting(_plugin);
+        token = plugin.getVotingToken();
 
         // Do we need to delegate votes? At the moment: doesnt look like it
         GovernanceERC20 voteToken = GovernanceERC20(address(plugin.getVotingToken()));

@@ -5,88 +5,160 @@ import {IVotesUpgradeable} from
     "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
 import {Action} from "@aragon/osx-commons-contracts/src/executors/IExecutor.sol";
-import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
+import {IProposal} from
+    "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/IProposal.sol";
 
 import {MaciVoting} from "../../src/MaciVoting.sol";
-import {Utils} from "../../script/Utils.sol";
 import {MaciVoting_Test_Base} from "./MaciVotingBase.t.sol";
 
 contract MaciVoting_CreateProposal_Test is MaciVoting_Test_Base {
+    uint256 internal allowFailureMap;
+
+    bytes internal metadata;
+    Action[] internal actions;
+    uint64 internal startDate;
+    uint64 internal endDate;
+    bytes internal data;
+
+    uint256 internal snapshotBlock;
+
     function setUp() public override {
         super.setUp();
-        // Uncomment this to check an existing deployed plugin
-        // plugin = MaciVoting(0xA60187Ef04a44bcd06754E660bf78079f298fc02);
+
+        allowFailureMap = 0;
+
+        metadata = bytes("ipfs://hello");
+        actions.push(Action({to: address(0x0), value: 0, data: bytes("0x00")}));
+        startDate = uint64(block.timestamp + 5 minutes);
+        endDate = uint64(block.timestamp + 15 minutes);
+        data = abi.encode(allowFailureMap, uint8(0), false);
+
+        snapshotBlock = block.number - 1;
     }
 
-    // FIXME: this test is not working
-    function test_0_erc20votes_assigned() public {
-        address voteToken = address(plugin.getVotingToken());
+    /**
+     * @notice Based on internal function `_createProposalId`
+     */
+    function predictProposalId(Action[] memory _actions, bytes memory _metadata)
+        private
+        view
+        returns (uint256)
+    {
+        return uint256(
+            keccak256(
+                abi.encode(
+                    block.chainid,
+                    block.number,
+                    address(plugin),
+                    keccak256(abi.encode(_actions, _metadata))
+                )
+            )
+        );
+    }
 
-        (,, GovernanceERC20.MintSettings memory mintSettings) =
-            Utils.getGovernanceTokenAndMintSettings();
+    function test_createProposal_RevertWhen_NotEnoughProposerVotingPower() public {
+        address unauthorizedAddress = address(0x0A);
+        vm.startPrank(unauthorizedAddress);
 
-        uint256 totalTokens = 0;
-        uint256 totalVotingPower = plugin.totalVotingPower(block.number - 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MaciVoting.ProposalCreationForbidden.selector, unauthorizedAddress
+            )
+        );
+        plugin.createProposal({
+            _metadata: metadata,
+            _actions: actions,
+            _startDate: startDate,
+            _endDate: endDate,
+            _data: data
+        });
+    }
 
-        address[] memory receivers = mintSettings.receivers;
-        for (uint256 i = 0; i < receivers.length; i++) {
-            uint256 balance = IVotesUpgradeable(voteToken).getVotes(receivers[i]);
-            assertEq(balance, mintSettings.amounts[i], "Balance mismatch for receiver");
+    function test_createProposal_RevertWhen_NoVotingPower() public {
+        uint256 zeroVotingPower = 0;
+        vm.startPrank(address(0xB0b));
 
-            totalTokens += balance;
-        }
-        assertEq(totalVotingPower, totalTokens);
+        vm.mockCall(
+            address(plugin.getVotingToken()),
+            abi.encodeWithSelector(IVotesUpgradeable.getPastTotalSupply.selector, snapshotBlock),
+            abi.encode(zeroVotingPower)
+        );
 
-        address unknownWallet = address(0x0A);
-        uint256 unknownBalance = IVotesUpgradeable(voteToken).getVotes(unknownWallet);
-        assertEq(unknownBalance, 0);
+        vm.expectRevert(MaciVoting.NoVotingPower.selector);
+        plugin.createProposal({
+            _metadata: metadata,
+            _actions: actions,
+            _startDate: startDate,
+            _endDate: endDate,
+            _data: data
+        });
+    }
+
+    function test_createProposal_RevertWhen_ProposalAlreadyExists() public {
+        vm.startPrank(address(0xB0b));
+
+        plugin.createProposal({
+            _metadata: metadata,
+            _actions: actions,
+            _startDate: startDate,
+            _endDate: endDate,
+            _data: data
+        });
+
+        uint256 predictedProposalId = predictProposalId(actions, metadata);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(MaciVoting.ProposalAlreadyExists.selector, predictedProposalId)
+        );
+        plugin.createProposal({
+            _metadata: metadata,
+            _actions: actions,
+            _startDate: startDate,
+            _endDate: endDate,
+            _data: data
+        });
     }
 
     function test_createProposal_CreatesProposal() public {
         vm.startPrank(address(0xB0b));
 
-        Action[] memory _actions = new Action[](1);
-        _actions[0] = Action({to: address(0x0), value: 0, data: bytes("0x00")});
-        bytes memory data = abi.encode(uint256(0), uint8(0), false);
+        uint256 predictedProposalId = predictProposalId(actions, metadata);
 
-        // Create a proposal
+        vm.expectEmit();
+        emit IProposal.ProposalCreated(
+            predictedProposalId,
+            address(0xB0b),
+            startDate,
+            endDate,
+            metadata,
+            actions,
+            allowFailureMap
+        );
         uint256 proposalId = plugin.createProposal({
-            _metadata: bytes("ipfs://hello"),
-            _actions: _actions,
-            _startDate: uint64(block.timestamp + 5 minutes),
-            _endDate: uint64(block.timestamp + 15 minutes),
+            _metadata: metadata,
+            _actions: actions,
+            _startDate: startDate,
+            _endDate: endDate,
             _data: data
         });
-        assertEq(plugin.getProposal(proposalId).parameters.snapshotBlock, block.number - 1);
-
-        vm.stopPrank();
+        assertEq(plugin.getProposal(proposalId).parameters.snapshotBlock, snapshotBlock);
     }
 
-    function test_createProposal_RevertWhen_NotEnoughVotingPower() public {
-        vm.startPrank(address(0x0A));
+    function test_createProposal_SetsAllowFailureMap() public {
+        uint256 _allowFailureMap = 1;
 
-        if (plugin.minProposerVotingPower() == 0) {
-            // we can always create a proposal
-            return;
-        }
+        vm.startPrank(address(0xB0b));
 
-        Action[] memory _actions = new Action[](1);
-        _actions[0] = Action({to: address(0x0), value: 0, data: bytes("0x00")});
+        bytes memory dataWithFailureMap = abi.encode(_allowFailureMap, uint8(0), false);
 
-        bytes memory data = abi.encode(uint256(0), uint8(0), false);
-
-        // Create a proposal
-        vm.expectRevert(
-            abi.encodeWithSelector(MaciVoting.ProposalCreationForbidden.selector, address(0x0A))
-        );
-        plugin.createProposal({
-            _metadata: bytes("ipfs://hello"),
-            _actions: _actions,
-            _startDate: uint64(block.timestamp + 5 minutes),
-            _endDate: uint64(block.timestamp + 15 minutes),
-            _data: data
+        uint256 proposalId = plugin.createProposal({
+            _metadata: metadata,
+            _actions: actions,
+            _startDate: startDate,
+            _endDate: endDate,
+            _data: dataWithFailureMap
         });
 
-        vm.stopPrank();
+        assertEq(plugin.getProposal(proposalId).allowFailureMap, _allowFailureMap);
     }
 }

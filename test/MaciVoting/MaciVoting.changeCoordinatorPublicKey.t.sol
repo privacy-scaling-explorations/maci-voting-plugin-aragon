@@ -6,6 +6,7 @@ import {Action} from "@aragon/osx-commons-contracts/src/executors/IExecutor.sol"
 
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 
+import {MaciVoting} from "../../src/MaciVoting.sol";
 import {MaciVoting_Test_Base} from "./MaciVotingBase.t.sol";
 
 contract MaciVoting_ChangeCoordinatorPublicKey_Test is MaciVoting_Test_Base {
@@ -47,13 +48,15 @@ contract MaciVoting_ChangeCoordinatorPublicKey_Test is MaciVoting_Test_Base {
             100 // no votes
         );
 
+        vm.expectEmit();
+        emit MaciVoting.CoordinatorKeyChanged(
+            DomainObjs.PublicKey({x: oldX, y: oldY}), newPublicKey
+        );
         plugin.execute(proposalId);
 
         (uint256 updatedX, uint256 updatedY) = plugin.coordinatorPublicKey();
         assertEq(updatedX, newPublicKey.x);
         assertEq(updatedY, newPublicKey.y);
-
-        vm.stopPrank();
     }
 
     function test_changeCoordinatorPublicKey_RevertWhen_CallerIsNotDao() public {
@@ -73,7 +76,5 @@ contract MaciVoting_ChangeCoordinatorPublicKey_Test is MaciVoting_Test_Base {
             )
         );
         plugin.changeCoordinatorPublicKey(newPublicKey);
-
-        vm.stopPrank();
     }
 }
