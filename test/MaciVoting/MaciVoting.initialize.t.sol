@@ -7,10 +7,12 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IGovernanceWrappedERC20} from
     "@aragon/token-voting-plugin/ERC20/governance/IGovernanceWrappedERC20.sol";
 
-import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
 import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
 import {GovernanceWrappedERC20} from
     "@aragon/token-voting-plugin/ERC20/governance/GovernanceWrappedERC20.sol";
+import {IPlugin} from "@aragon/osx-commons-contracts/src/plugin/IPlugin.sol";
+
+import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 
 import {MaciVotingSetup} from "../../src/MaciVotingSetup.sol";
 import {MaciVoting} from "../../src/MaciVoting.sol";
@@ -23,29 +25,79 @@ contract MaciVoting_Initialize_Test is MaciVoting_Test_Base {
         super.setUp();
     }
 
-    function test_initialize_InitializesPlugin() public view {
-        assertEq(address(plugin.dao()), address(dao));
+    function test_initialize_RevertWhen_AlreadyInitialized() public {
+        vm.expectRevert("Initializable: contract is already initialized");
+        plugin.initialize(initializationParams);
     }
 
-    function test_initialize_RevertWhen_AlreadyInitialized() public {
-        Utils.MaciEnvVariables memory maciEnvVariables = Utils.readMaciEnv();
-        IMaciVoting.InitializationParams memory params = IMaciVoting.InitializationParams({
-            dao: IDAO(address(0)), // Set in MaciVotingSetup.prepareInstallation
-            token: IVotesUpgradeable(address(0)), // Set in MaciVotingSetup.prepareInstallation
-            maci: maciEnvVariables.maci,
-            coordinatorPublicKey: maciEnvVariables.coordinatorPublicKey,
-            votingSettings: maciEnvVariables.votingSettings,
-            targetConfig: maciEnvVariables.targetConfig,
-            verifier: maciEnvVariables.verifier,
-            verifyingKeysRegistry: maciEnvVariables.verifyingKeysRegistry,
-            policyFactory: maciEnvVariables.policyFactory,
-            checkerFactory: maciEnvVariables.checkerFactory,
-            voiceCreditProxyFactory: maciEnvVariables.voiceCreditProxyFactory,
-            treeDepths: maciEnvVariables.treeDepths,
-            messageBatchSize: maciEnvVariables.messageBatchSize
-        });
-        vm.expectRevert("Initializable: contract is already initialized");
-        plugin.initialize(params);
+    function test_initialize_InitializesPlugin() public view {
+        assertEq(address(plugin.dao()), address(dao));
+        IPlugin.TargetConfig memory targetConfig = plugin.getCurrentTargetConfig();
+        assertEq(targetConfig.target, initializationParams.targetConfig.target);
+
+        assertEq(uint8(targetConfig.operation), uint8(initializationParams.targetConfig.operation));
+        assertEq(address(plugin.getVotingToken()), address(token));
+
+        assertEq(address(plugin.maci()), initializationParams.maci);
+        (uint256 x, uint256 y) = plugin.coordinatorPublicKey();
+        assertEq(x, initializationParams.coordinatorPublicKey.x);
+        assertEq(y, initializationParams.coordinatorPublicKey.y);
+
+        (
+            uint32 minParticipation,
+            uint64 minDuration,
+            uint256 minProposerVotingPower,
+            uint8 voteOptions,
+            DomainObjs.Mode mode
+        ) = plugin.votingSettings();
+        assertEq(minParticipation, initializationParams.votingSettings.minParticipation);
+        assertEq(minDuration, initializationParams.votingSettings.minDuration);
+        assertEq(
+            minProposerVotingPower, initializationParams.votingSettings.minProposerVotingPower
+        );
+        assertEq(voteOptions, initializationParams.votingSettings.voteOptions);
+        assertEq(uint8(mode), uint8(initializationParams.votingSettings.mode));
+
+        assertEq(plugin.verifier(), initializationParams.verifier);
+        assertEq(plugin.verifyingKeysRegistry(), initializationParams.verifyingKeysRegistry);
+        assertEq(address(plugin.policyFactory()), initializationParams.policyFactory);
+        assertEq(address(plugin.checkerFactory()), initializationParams.checkerFactory);
+        assertEq(
+            address(plugin.voiceCreditProxyFactory()), initializationParams.voiceCreditProxyFactory
+        );
+
+        (uint8 tallyProcessingStateTreeDepth, uint8 voteOptionTreeDepth, uint8 stateTreeDepth) =
+            plugin.treeDepths();
+        assertEq(
+            tallyProcessingStateTreeDepth,
+            initializationParams.treeDepths.tallyProcessingStateTreeDepth
+        );
+        assertEq(voteOptionTreeDepth, initializationParams.treeDepths.voteOptionTreeDepth);
+        assertEq(stateTreeDepth, initializationParams.treeDepths.stateTreeDepth);
+        assertEq(plugin.messageBatchSize(), initializationParams.messageBatchSize);
+    }
+
+    function test_initialize_Erc20VotesAssignedCorrectly() public {
+        address voteToken = address(plugin.getVotingToken());
+
+        (,, GovernanceERC20.MintSettings memory mintSettings) =
+            Utils.getGovernanceTokenAndMintSettings();
+
+        uint256 totalTokens = 0;
+        uint256 totalVotingPower = plugin.totalVotingPower(block.number - 1);
+
+        address[] memory receivers = mintSettings.receivers;
+        for (uint256 i = 0; i < receivers.length; i++) {
+            uint256 balance = IVotesUpgradeable(voteToken).getVotes(receivers[i]);
+            assertEq(balance, mintSettings.amounts[i], "Balance mismatch for receiver");
+
+            totalTokens += balance;
+        }
+        assertEq(totalVotingPower, totalTokens);
+
+        address unknownWallet = address(0x0A);
+        uint256 unknownBalance = IVotesUpgradeable(voteToken).getVotes(unknownWallet);
+        assertEq(unknownBalance, 0);
     }
 
     function test_initialize_SetsUpGovernanceWrappedERC20() public {

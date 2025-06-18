@@ -34,8 +34,6 @@ contract MaciVoting_Execute_Test is MaciVoting_Test_Base {
         );
 
         plugin.execute(proposalId);
-
-        vm.stopPrank();
     }
 
     function test_execute_RevertWhen_NotEnoughVotes() public {
@@ -65,7 +63,5 @@ contract MaciVoting_Execute_Test is MaciVoting_Test_Base {
             abi.encodeWithSelector(MaciVoting.ProposalExecutionForbidden.selector, proposalId)
         );
         plugin.execute(proposalId);
-
-        vm.stopPrank();
     }
 }
