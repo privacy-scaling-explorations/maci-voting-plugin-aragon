@@ -129,6 +129,7 @@ contract MaciVotingScript is Script {
             maci: maciEnvVariables.maci,
             coordinatorPublicKey: maciEnvVariables.coordinatorPublicKey,
             votingSettings: maciEnvVariables.votingSettings,
+            targetConfig: maciEnvVariables.targetConfig,
             verifier: maciEnvVariables.verifier,
             verifyingKeysRegistry: maciEnvVariables.verifyingKeysRegistry,
             policyFactory: maciEnvVariables.policyFactory,

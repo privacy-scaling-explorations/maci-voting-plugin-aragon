@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.29;
+pragma solidity ^0.8.29;
 
 import {Vm} from "forge-std/Test.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
+import {IPlugin} from "@aragon/osx-commons-contracts/src/plugin/IPlugin.sol";
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 import {Params} from "@maci-protocol/contracts/contracts/utilities/Params.sol";
 import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/GovernanceERC20.sol";
@@ -18,6 +19,7 @@ library Utils {
         address maci;
         DomainObjs.PublicKey coordinatorPublicKey;
         IMaciVoting.VotingSettings votingSettings;
+        IPlugin.TargetConfig targetConfig;
         address verifier;
         address verifyingKeysRegistry;
         address policyFactory;
@@ -41,6 +43,9 @@ library Utils {
     }
 
     function readMaciEnv() public view returns (MaciEnvVariables memory maciEnvVariables) {
+        IPlugin.TargetConfig memory defaultTargetConfig =
+            IPlugin.TargetConfig({target: address(0), operation: IPlugin.Operation.Call});
+
         maciEnvVariables.maci = VM.envAddress("MACI_ADDRESS");
         maciEnvVariables.coordinatorPublicKey = DomainObjs.PublicKey({
             x: VM.envUint("COORDINATOR_PUBLIC_KEY_X"),
@@ -53,6 +58,7 @@ library Utils {
             uint8(VM.envUint("VOTE_OPTIONS")),
             parseMode(VM.envString("MODE"))
         );
+        maciEnvVariables.targetConfig = defaultTargetConfig;
         maciEnvVariables.verifier = VM.envAddress("VERIFIER_ADDRESS");
         maciEnvVariables.verifyingKeysRegistry = VM.envAddress("VERIFYING_KEY_REGISTRY_ADDRESS");
         maciEnvVariables.policyFactory = VM.envAddress("POLICY_FACTORY_ADDRESS");

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.29;
+pragma solidity ^0.8.29;
 
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IDAO} from "@aragon/osx-commons-contracts/src/dao/IDAO.sol";
@@ -48,6 +48,7 @@ contract MaciVotingE2E is AragonE2E {
             maci: maciEnvVariables.maci,
             coordinatorPublicKey: maciEnvVariables.coordinatorPublicKey,
             votingSettings: maciEnvVariables.votingSettings,
+            targetConfig: maciEnvVariables.targetConfig,
             verifier: maciEnvVariables.verifier,
             verifyingKeysRegistry: maciEnvVariables.verifyingKeysRegistry,
             policyFactory: maciEnvVariables.policyFactory,

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.29;
+pragma solidity ^0.8.29;
 
 import {IVotesUpgradeable} from
     "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
@@ -56,6 +56,7 @@ abstract contract MaciVotingTest is AragonTest {
             maci: maciEnvVariables.maci,
             coordinatorPublicKey: maciEnvVariables.coordinatorPublicKey,
             votingSettings: maciEnvVariables.votingSettings,
+            targetConfig: maciEnvVariables.targetConfig,
             verifier: maciEnvVariables.verifier,
             verifyingKeysRegistry: maciEnvVariables.verifyingKeysRegistry,
             policyFactory: maciEnvVariables.policyFactory,
@@ -121,6 +122,7 @@ contract MaciVotingInitializeTest is MaciVotingTest {
             maci: maciEnvVariables.maci,
             coordinatorPublicKey: maciEnvVariables.coordinatorPublicKey,
             votingSettings: maciEnvVariables.votingSettings,
+            targetConfig: maciEnvVariables.targetConfig,
             verifier: maciEnvVariables.verifier,
             verifyingKeysRegistry: maciEnvVariables.verifyingKeysRegistry,
             policyFactory: maciEnvVariables.policyFactory,

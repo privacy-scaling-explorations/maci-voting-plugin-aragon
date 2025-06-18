@@ -37,6 +37,7 @@ contract MaciVotingSetup is PluginSetup {
     MaciVoting private immutable maciVotingBase;
 
     /// @notice The address of the `GovernanceERC20` base contract.
+    // solhint-disable-next-line immutable-vars-naming
     address public immutable governanceERC20Base;
 
     /// @notice The address of the `GovernanceWrappedERC20` base contract.
@@ -92,6 +93,7 @@ contract MaciVotingSetup is PluginSetup {
         (
             IMaciVoting.InitializationParams memory _params,
             TokenSettings memory tokenSettings,
+            // only used for GovernanceERC20(token is not passed)
             GovernanceERC20.MintSettings memory mintSettings
         ) = abi.decode(
             _data, (IMaciVoting.InitializationParams, TokenSettings, GovernanceERC20.MintSettings)
@@ -154,6 +156,7 @@ contract MaciVotingSetup is PluginSetup {
             permissionId: MaciVoting(plugin).CHANGE_COORDINATOR_PUBLIC_KEY_PERMISSION_ID()
         });
 
+        // Grant the `MINT_PERMISSION_ID` on the token to the DAO if deploying a new token
         if (tokenSettings.addr == address(0)) {
             bytes32 tokenMintPermission = GovernanceERC20(token).MINT_PERMISSION_ID();
 
