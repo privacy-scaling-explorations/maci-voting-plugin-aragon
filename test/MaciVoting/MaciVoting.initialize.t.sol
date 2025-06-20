@@ -11,7 +11,13 @@ import {GovernanceERC20} from "@aragon/token-voting-plugin/ERC20/governance/Gove
 import {GovernanceWrappedERC20} from
     "@aragon/token-voting-plugin/ERC20/governance/GovernanceWrappedERC20.sol";
 import {IPlugin} from "@aragon/osx-commons-contracts/src/plugin/IPlugin.sol";
+import {Action} from "@aragon/osx-commons-contracts/src/executors/IExecutor.sol";
 
+import {IMACI} from "@maci-protocol/contracts/contracts/interfaces/IMACI.sol";
+import {MACI} from "@maci-protocol/contracts/contracts/MACI.sol";
+import {Poll} from "@maci-protocol/contracts/contracts/Poll.sol";
+import {IInitialVoiceCreditProxy} from
+    "@maci-protocol/contracts/contracts/interfaces/IInitialVoiceCreditProxy.sol";
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 
 import {MaciVotingSetup} from "../../src/MaciVotingSetup.sol";
@@ -78,8 +84,6 @@ contract MaciVoting_Initialize_Test is MaciVoting_Test_Base {
     }
 
     function test_initialize_Erc20VotesAssignedCorrectly() public {
-        address voteToken = address(plugin.getVotingToken());
-
         (,, GovernanceERC20.MintSettings memory mintSettings) =
             Utils.getGovernanceTokenAndMintSettings();
 
@@ -88,7 +92,7 @@ contract MaciVoting_Initialize_Test is MaciVoting_Test_Base {
 
         address[] memory receivers = mintSettings.receivers;
         for (uint256 i = 0; i < receivers.length; i++) {
-            uint256 balance = IVotesUpgradeable(voteToken).getVotes(receivers[i]);
+            uint256 balance = IVotesUpgradeable(token).getVotes(receivers[i]);
             assertEq(balance, mintSettings.amounts[i], "Balance mismatch for receiver");
 
             totalTokens += balance;
@@ -96,7 +100,7 @@ contract MaciVoting_Initialize_Test is MaciVoting_Test_Base {
         assertEq(totalVotingPower, totalTokens);
 
         address unknownWallet = address(0x0A);
-        uint256 unknownBalance = IVotesUpgradeable(voteToken).getVotes(unknownWallet);
+        uint256 unknownBalance = IVotesUpgradeable(token).getVotes(unknownWallet);
         assertEq(unknownBalance, 0);
     }
 
@@ -126,5 +130,43 @@ contract MaciVoting_Initialize_Test is MaciVoting_Test_Base {
         assertFalse(setup.supportsIVotesInterface(address(erc20)));
         assertTrue(wrappedToken.supportsInterface(type(IGovernanceWrappedERC20).interfaceId));
         assertTrue(wrappedToken.supportsInterface(type(IVotesUpgradeable).interfaceId));
+    }
+
+    function test_initialize_SetsVoiceCreditFactorCorrectly() public {
+        (,, GovernanceERC20.MintSettings memory mintSettings) =
+            Utils.getGovernanceTokenAndMintSettings();
+
+        // Create a proposal to deploy the `IInitialVoiceCreditProxy` instance
+        vm.startPrank(address(0xB0b));
+        Action[] memory _actions = new Action[](1);
+        _actions[0] = Action({to: address(0x0), value: 0, data: bytes("0x00")});
+        bytes memory data = abi.encode(uint256(0), uint8(0), false);
+        uint256 proposalId = plugin.createProposal({
+            _metadata: bytes("ipfs://hello"),
+            _actions: _actions,
+            _startDate: uint64(block.timestamp + 5 minutes),
+            _endDate: uint64(block.timestamp + 15 minutes),
+            _data: data
+        });
+        vm.stopPrank();
+        vm.roll(block.number + 1);
+
+        // Get the `IInitialVoiceCreditProxy` instance from the poll
+        MaciVoting.Proposal memory proposal = plugin.getProposal(proposalId);
+        IMACI.PollContracts memory pollContracts =
+            MACI(maciEnvVariables.maci).getPoll(proposal.pollId);
+        (,,,, IInitialVoiceCreditProxy initialVoiceCreditProxy) =
+            Poll(pollContracts.poll).extContracts();
+
+        address[] memory receivers = mintSettings.receivers;
+        for (uint256 i = 0; i < receivers.length; i++) {
+            uint256 balance = IVotesUpgradeable(token).getVotes(receivers[i]);
+            uint256 balanceNoDecimals = balance / 1e18;
+            uint256 voiceCreditBalance =
+                initialVoiceCreditProxy.getVoiceCredits(receivers[i], bytes("0x00"));
+            assertEq(
+                balanceNoDecimals, voiceCreditBalance, "Balance should equal voice credits 1-1"
+            );
+        }
     }
 }
