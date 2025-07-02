@@ -19,6 +19,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {MACI} from "@maci-protocol/contracts/contracts/MACI.sol";
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 import {Tally} from "@maci-protocol/contracts/contracts/Tally.sol";
+import {ITally} from "@maci-protocol/contracts/contracts/interfaces/ITally.sol";
 import {IMACI} from "@maci-protocol/contracts/contracts/interfaces/IMACI.sol";
 import {Params} from "@maci-protocol/contracts/contracts/utilities/Params.sol";
 import {IPolicy} from "@excubiae/contracts/contracts/interfaces/IPolicy.sol";
@@ -418,14 +419,14 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         // yes -> voteOption = 0
         // no -> voteOption = 1
 
-        (uint256 yesValue, bool yesFlag) = tally_.tallyResults(0);
-        (uint256 noValue, bool noFlag) = tally_.tallyResults(1);
+        ITally.TallyResult memory yesTallyResult = tally_.getTallyResults(0);
+        ITally.TallyResult memory noTallyResult = tally_.getTallyResults(1);
 
-        if (!noFlag || !yesFlag) {
+        if (!noTallyResult.isSet || !yesTallyResult.isSet) {
             return false;
         }
 
-        if (yesValue < noValue) {
+        if (yesTallyResult.value < noTallyResult.value) {
             return false;
         }
 
@@ -461,11 +462,11 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         IMACI.PollContracts memory pollContracts = maci.getPoll(proposal_.pollId);
         Tally tally_ = Tally(pollContracts.tally);
 
-        (uint256 noValue,) = tally_.tallyResults(0);
-        (uint256 yesValue,) = tally_.tallyResults(1);
+        ITally.TallyResult memory noTallyResult = tally_.getTallyResults(0);
+        ITally.TallyResult memory yesTallyResult = tally_.getTallyResults(1);
         // Save the results in the proposal struct for faster access
-        proposal_.tally.yes = yesValue;
-        proposal_.tally.no = noValue;
+        proposal_.tally.yes = yesTallyResult.value;
+        proposal_.tally.no = noTallyResult.value;
 
         _execute(
             proposal_.targetConfig.target,
