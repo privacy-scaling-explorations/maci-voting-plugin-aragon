@@ -43,7 +43,7 @@
     "@aragon/token-voting-plugin": "github:aragon/token-voting-plugin#v1.3.0",
     "@ensdomains/ens-contracts": "0.0.11",
     "@excubiae/contracts": "0.11.0",
-    "@maci-protocol/contracts": "0.0.0-ci.8198a70",
+    "@maci-protocol/contracts": "0.0.0-ci.366681b",
     "@openzeppelin/contracts": "4.9.6",
     "@openzeppelin/contracts-upgradeable": "4.9.6",
     "solady": "^0.1.19"

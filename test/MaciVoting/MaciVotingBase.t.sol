@@ -92,12 +92,12 @@ abstract contract MaciVoting_Test_Base is AragonTest {
         );
         vm.mockCall(
             pollContracts.tally,
-            abi.encodeWithSignature("tallyResults(uint256)", 0),
+            abi.encodeWithSignature("getTallyResults(uint256)", 0),
             abi.encode(yesValue, true)
         );
         vm.mockCall(
             pollContracts.tally,
-            abi.encodeWithSignature("tallyResults(uint256)", 1),
+            abi.encodeWithSignature("getTallyResults(uint256)", 1),
             abi.encode(noValue, true)
         );
     }
