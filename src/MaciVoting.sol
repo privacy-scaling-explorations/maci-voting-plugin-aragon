@@ -16,6 +16,7 @@ import {SafeCastUpgradeable} from
 import {IVotesUpgradeable} from
     "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+
 import {MACI} from "@maci-protocol/contracts/contracts/MACI.sol";
 import {DomainObjs} from "@maci-protocol/contracts/contracts/utilities/DomainObjs.sol";
 import {Tally} from "@maci-protocol/contracts/contracts/Tally.sol";
@@ -43,6 +44,13 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         ^ this.minProposerVotingPower.selector ^ this.totalVotingPower.selector
         ^ this.getVotingToken.selector ^ this.minParticipation.selector ^ this.minDuration.selector
         ^ this.getProposal.selector ^ this.changeCoordinatorPublicKey.selector;
+
+    /// @notice The ID of the permission required to call the `createProposal` functions.
+    bytes32 public constant CREATE_PROPOSAL_PERMISSION_ID = keccak256("CREATE_PROPOSAL_PERMISSION");
+
+    /// @notice The ID of the permission required to call the `execute` function.
+    bytes32 public constant EXECUTE_PROPOSAL_PERMISSION_ID =
+        keccak256("EXECUTE_PROPOSAL_PERMISSION");
 
     /// @notice The ID of the permission required to call the
     /// `changeCoordinatorPublicKey` function.
@@ -300,6 +308,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     }
 
     /// @notice Creates a proposal.
+    /// @dev Requires the `CREATE_PROPOSAL_PERMISSION_ID` permission.
     /// @param _metadata The metadata of the proposal.
     /// @param _actions The actions of the proposal.
     /// @param _startDate The start date of the proposal.
@@ -312,26 +321,8 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
         uint64 _startDate,
         uint64 _endDate,
         bytes calldata _data
-    ) public returns (uint256 proposalId) {
+    ) public auth(CREATE_PROPOSAL_PERMISSION_ID) returns (uint256 proposalId) {
         (uint256 _allowFailureMap,,) = abi.decode(_data, (uint256, uint8, bool));
-
-        // Check that either `_msgSender` owns enough tokens or has enough
-        // voting power from being a delegatee.
-        {
-            uint256 minProposerVotingPower_ = minProposerVotingPower();
-
-            if (minProposerVotingPower_ != 0) {
-                // Because of the checks in `MaciVotingSetup`, we can assume that `votingToken`
-                // is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token.
-                if (
-                    votingToken.getVotes(_msgSender()) < minProposerVotingPower_
-                        && IVotesUpgradeable(address(votingToken)).getVotes(_msgSender())
-                            < minProposerVotingPower_
-                ) {
-                    revert ProposalCreationForbidden(_msgSender());
-                }
-            }
-        }
 
         uint256 snapshotBlock;
         unchecked {
@@ -339,8 +330,8 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
             // backrunning transactions causing census changes.
             snapshotBlock = block.number - 1;
         }
-        uint256 totalVotingPower_ = totalVotingPower(snapshotBlock);
 
+        uint256 totalVotingPower_ = totalVotingPower(snapshotBlock);
         if (totalVotingPower_ == 0) {
             revert NoVotingPower();
         }
@@ -349,14 +340,14 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
 
         proposalId = _createProposalId(keccak256(abi.encode(_actions, _metadata)));
 
-        // Store proposal related information
-        Proposal storage proposal_ = proposals[proposalId];
-
-        if (_proposalExists(proposalId)) {
-            revert ProposalAlreadyExists(proposalId);
-        }
-
         {
+            // Store proposal related information
+            Proposal storage proposal_ = proposals[proposalId];
+
+            if (_proposalExists(proposalId)) {
+                revert ProposalAlreadyExists(proposalId);
+            }
+
             proposal_.parameters.startDate = _startDate;
             proposal_.parameters.endDate = _endDate;
             proposal_.parameters.snapshotBlock = snapshotBlock;
@@ -450,7 +441,8 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     }
 
     /// @inheritdoc IProposal
-    function execute(uint256 _proposalId) external {
+    /// @dev Requires the `EXECUTE_PROPOSAL_PERMISSION_ID` permission.
+    function execute(uint256 _proposalId) external auth(EXECUTE_PROPOSAL_PERMISSION_ID) {
         if (!_canExecute(_proposalId)) {
             revert ProposalExecutionForbidden(_proposalId);
         }
@@ -480,6 +472,7 @@ contract MaciVoting is PluginUUPSUpgradeable, ProposalUpgradeable, IMaciVoting {
     }
 
     /// @notice Changes the coordinator public key. Only DAO (with an action) can call
+    /// @dev Requires the `CHANGE_COORDINATOR_PUBLIC_KEY_PERMISSION_ID` permission.
     /// @param _coordinatorPublicKey The new coordinator public key.
     function changeCoordinatorPublicKey(DomainObjs.PublicKey calldata _coordinatorPublicKey)
         public

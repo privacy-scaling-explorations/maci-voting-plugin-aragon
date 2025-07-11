@@ -23,6 +23,7 @@ import {GovernanceWrappedERC20} from
 
 import {IMaciVoting} from "./IMaciVoting.sol";
 import {MaciVoting} from "./MaciVoting.sol";
+import {VotingPowerCondition} from "./ERC20Votes/VotingPowerCondition.sol";
 
 /// @title MaciVotingSetup
 /// @dev Release 1, Build 1
@@ -31,6 +32,10 @@ contract MaciVotingSetup is PluginSetup {
     using Address for address;
     using Clones for address;
     using ProxyLib for address;
+
+    /// @notice A special address encoding permissions that are valid for any
+    /// address `who` or `where`.
+    address private constant ANY_ADDR = address(type(uint160).max);
 
     /// @notice The address of the `MaciVoting` base contract.
     // solhint-disable-next-line immutable-vars-naming
@@ -134,9 +139,12 @@ contract MaciVotingSetup is PluginSetup {
         plugin =
             address(maciVotingBase).deployUUPSProxy(abi.encodeCall(MaciVoting.initialize, _params));
 
+        preparedSetupData.helpers = new address[](1);
+        preparedSetupData.helpers[0] = address(new VotingPowerCondition(plugin));
+
         // Prepare permissions
         preparedSetupData.permissions =
-            new PermissionLib.MultiTargetPermission[](tokenSettings.addr != address(0) ? 2 : 3);
+            new PermissionLib.MultiTargetPermission[](tokenSettings.addr != address(0) ? 4 : 5);
 
         // Grant the `EXECUTE_PERMISSION` on the DAO to the plugin
         preparedSetupData.permissions[0] = PermissionLib.MultiTargetPermission({
@@ -147,8 +155,24 @@ contract MaciVotingSetup is PluginSetup {
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
 
-        // Grant the `CHANGE_COORDINATOR_PUBLIC_KEY_PERMISSION_ID` on the plugin to the DAO
         preparedSetupData.permissions[1] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.GrantWithCondition,
+            where: plugin,
+            who: ANY_ADDR,
+            condition: preparedSetupData.helpers[0], // VotingPowerCondition
+            permissionId: MaciVoting(IMPLEMENTATION).CREATE_PROPOSAL_PERMISSION_ID()
+        });
+
+        preparedSetupData.permissions[2] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Grant,
+            where: plugin,
+            who: ANY_ADDR,
+            condition: PermissionLib.NO_CONDITION,
+            permissionId: MaciVoting(IMPLEMENTATION).EXECUTE_PROPOSAL_PERMISSION_ID()
+        });
+
+        // Grant the `CHANGE_COORDINATOR_PUBLIC_KEY_PERMISSION_ID` on the plugin to the DAO
+        preparedSetupData.permissions[3] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: plugin,
             who: _dao,
@@ -160,7 +184,7 @@ contract MaciVotingSetup is PluginSetup {
         if (tokenSettings.addr == address(0)) {
             bytes32 tokenMintPermission = GovernanceERC20(token).MINT_PERMISSION_ID();
 
-            preparedSetupData.permissions[2] = PermissionLib.MultiTargetPermission({
+            preparedSetupData.permissions[4] = PermissionLib.MultiTargetPermission({
                 operation: PermissionLib.Operation.Grant,
                 where: token,
                 who: _dao,
@@ -176,7 +200,7 @@ contract MaciVotingSetup is PluginSetup {
         view
         returns (PermissionLib.MultiTargetPermission[] memory permissions)
     {
-        permissions = new PermissionLib.MultiTargetPermission[](2);
+        permissions = new PermissionLib.MultiTargetPermission[](4);
 
         permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Revoke,
@@ -187,6 +211,22 @@ contract MaciVotingSetup is PluginSetup {
         });
 
         permissions[1] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Revoke,
+            where: _payload.plugin,
+            who: ANY_ADDR,
+            condition: PermissionLib.NO_CONDITION,
+            permissionId: MaciVoting(IMPLEMENTATION).CREATE_PROPOSAL_PERMISSION_ID()
+        });
+
+        permissions[2] = PermissionLib.MultiTargetPermission({
+            operation: PermissionLib.Operation.Revoke,
+            where: _payload.plugin,
+            who: ANY_ADDR,
+            condition: PermissionLib.NO_CONDITION,
+            permissionId: MaciVoting(IMPLEMENTATION).EXECUTE_PROPOSAL_PERMISSION_ID()
+        });
+
+        permissions[3] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Revoke,
             where: _payload.plugin,
             who: _dao,

@@ -7,6 +7,7 @@ import {IVotesUpgradeable} from
 import {Action} from "@aragon/osx-commons-contracts/src/executors/IExecutor.sol";
 import {IProposal} from
     "@aragon/osx-commons-contracts/src/plugin/extensions/proposal/IProposal.sol";
+import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
 
 import {MaciVoting} from "../../src/MaciVoting.sol";
 import {MaciVoting_Test_Base} from "./MaciVotingBase.t.sol";
@@ -62,7 +63,11 @@ contract MaciVoting_CreateProposal_Test is MaciVoting_Test_Base {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                MaciVoting.ProposalCreationForbidden.selector, unauthorizedAddress
+                DaoUnauthorized.selector,
+                address(dao),
+                address(plugin),
+                unauthorizedAddress,
+                plugin.CREATE_PROPOSAL_PERMISSION_ID()
             )
         );
         plugin.createProposal({
